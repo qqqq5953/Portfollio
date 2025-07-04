@@ -11,10 +11,12 @@ import {
 import {
   AudioWaveform,
   BookOpen,
-  Bot,
   Command,
   GalleryVerticalEnd,
-  SquareTerminal,
+  Plus,
+  History,
+  LayoutDashboard,
+  LineChart,
 } from "lucide-vue-next";
 import NavMain from "@/components/NavMain.vue";
 import NavUser from "@/components/NavUser.vue";
@@ -52,25 +54,26 @@ const data = {
     {
       title: "Overview",
       url: "/admin/overview",
-      icon: SquareTerminal,
+      icon: LayoutDashboard,
     },
     {
       title: "Performance",
       url: "/admin/performance",
-      icon: Bot,
+      icon: LineChart,
     },
     {
       title: "Transactions",
-      url: "/admin/transactions",
       icon: BookOpen,
       children: [
         {
           title: "History",
           url: "/admin/transactions/history",
+          icon: History,
         },
         {
-          title: "Add Transaction",
+          title: "New",
           url: "/admin/transactions/add",
+          icon: Plus,
         },
       ],
     },

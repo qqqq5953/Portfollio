@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 </script>
 
 <template>
-  <div class="px-4 py-6 space-y-6">
+  <div class="space-y-6">
     <Card>
       <CardHeader>
         <CardTitle>Upload Statement</CardTitle>

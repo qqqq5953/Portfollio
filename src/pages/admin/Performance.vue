@@ -6,11 +6,30 @@ import LineChart from "@/components/LineChart.vue";
 </script>
 
 <template>
-  <div class="p-6 space-y-6">
+  <div class="space-y-6">
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <Card><CardContent>Total Value</CardContent></Card>
-      <Card><CardContent>Gain/Loss</CardContent></Card>
-      <Card><CardContent>Change %</CardContent></Card>
+      <Card>
+        <CardContent>
+          <div class="text-sm text-muted-foreground text-center">
+            Total Value
+          </div>
+          <div class="text-xl font-medium text-center">$100,000</div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardContent>
+          <div class="text-sm text-muted-foreground text-center">
+            Total Gain/Loss
+          </div>
+          <div class="text-xl font-medium text-center">+$5,000</div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardContent>
+          <div class="text-sm text-muted-foreground text-center">Change %</div>
+          <div class="text-xl font-medium text-center">+5%</div>
+        </CardContent>
+      </Card>
     </div>
 
     <Card>

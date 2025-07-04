@@ -25,11 +25,17 @@ export const routes = [
         path: "overview",
         name: "overview",
         component: () => import("@/pages/admin/Overview.vue"),
+        meta: {
+          title: "Overview",
+        },
       },
       {
         path: "performance",
         name: "performance",
         component: () => import("@/pages/admin/Performance.vue"),
+        meta: {
+          title: "Performance",
+        },
       },
       {
         path: "transactions",
@@ -40,12 +46,18 @@ export const routes = [
             name: "history",
             component: () =>
               import("@/pages/admin/transaction/TransactionHistory.vue"),
+            meta: {
+              title: "Transaction History",
+            },
           },
           {
             path: "add",
             name: "add",
             component: () =>
               import("@/pages/admin/transaction/TransactionAdd.vue"),
+            meta: {
+              title: "New Transaction",
+            },
           },
         ],
       },
