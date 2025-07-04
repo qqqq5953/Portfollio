@@ -67,9 +67,13 @@ defineProps<{
         </Collapsible>
 
         <SidebarMenuItem v-else class="flex items-center gap-2">
-          <SidebarMenuButton :tooltip="item.title">
+          <SidebarMenuButton :tooltip="item.title" class="py-0">
             <component :is="item.icon" v-if="item.icon" />
-            <RouterLink :to="item.url" v-if="item.url">
+            <RouterLink
+              :to="item.url"
+              v-if="item.url"
+              class="flex items-center size-full"
+            >
               {{ item.title }}
             </RouterLink>
             <span v-else>{{ item.title }}</span>

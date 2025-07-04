@@ -1,5 +1,35 @@
+<script setup lang="ts">
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import LineChart from "@/components/LineChart.vue";
+</script>
+
 <template>
-  <div>
-    <h1>Performance</h1>
+  <div class="p-6 space-y-6">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <Card><CardContent>Total Value</CardContent></Card>
+      <Card><CardContent>Gain/Loss</CardContent></Card>
+      <Card><CardContent>Change %</CardContent></Card>
+    </div>
+
+    <Card>
+      <CardContent><LineChart /></CardContent>
+    </Card>
+
+    <Card>
+      <CardHeader><CardTitle>AI 分析投資組合</CardTitle></CardHeader>
+      <CardContent class="space-y-4">
+        <Textarea placeholder="我目前投資報酬率偏低的原因是什麼？" />
+        <div class="flex flex-wrap gap-2">
+          <Button variant="outline">資產配置建議</Button>
+          <Button variant="outline">比較與 S&P500</Button>
+          <Button variant="outline">集中度分析</Button>
+        </div>
+        <p class="text-sm text-muted-foreground">
+          每日可提問 {`{n}`} 次，限制 300 字內問題。若需更多請升級。
+        </p>
+      </CardContent>
+    </Card>
   </div>
 </template>
