@@ -5,29 +5,40 @@ export const iframeHeight = "800px";
 
 <script setup lang="ts">
 import AppSidebar from "@/components/AppSidebar.vue";
-import { Separator } from "@/components/ui/separator";
 import {
   SidebarInset,
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { supabase } from "@/lib/supabase";
 import { computed } from "vue";
 import { useRoute } from "vue-router";
+import { useRouter } from "vue-router";
+import { Button } from "@/components/ui/button";
+import Cookies from "js-cookie";
 
 const route = useRoute();
+const router = useRouter();
 const title = computed(() => route.meta.title);
+
+const handleLogout = async () => {
+  await supabase.auth.signOut();
+  Cookies.remove("portfolio-access_token");
+  Cookies.remove("portfolio-refresh_token");
+  router.replace("/login");
+};
 </script>
 
 <template>
   <SidebarProvider>
     <AppSidebar />
     <SidebarInset class="flex flex-col gap-2 h-screen overflow-hidden">
-      <header class="flex shrink-0 items-center gap-2 py-4">
-        <div class="flex items-center gap-1 px-4">
-          <SidebarTrigger class="-ml-2" />
-          <Separator orientation="vertical" class="h-4" />
-          <h1 class="text-2xl font-semibold">{{ title }}</h1>
-        </div>
+      <header class="flex shrink-0 items-center gap-2 p-4">
+        <SidebarTrigger class="-ml-2" />
+        <h1 class="text-2xl font-semibold">{{ title }}</h1>
+        <Button @click="handleLogout" variant="ghost" class="ml-auto">
+          Logout
+        </Button>
       </header>
       <main
         class="flex flex-1 flex-col gap-4 px-6 pb-6 overflow-y-auto base-scrollbar"

@@ -1,3 +1,6 @@
+import { supabase } from "@/lib/supabase";
+import type { NavigationGuardNext, RouteLocationNormalized } from 'vue-router';
+
 export const routes = [
   {
     path: "/",
@@ -17,9 +20,44 @@ export const routes = [
     ],
   },
   {
+    path: "/login",
+    name: "login",
+    component: () => import("@/pages/guest/Login.vue"),
+    beforeEnter: async (
+      _to: RouteLocationNormalized, 
+      _from: RouteLocationNormalized, 
+      next: NavigationGuardNext
+    ) => {
+      const { data } = await supabase.auth.getSession();
+      if (data.session?.access_token) {
+        next("/admin/overview");
+      } else {
+        next();
+      }
+    },
+  },
+  {
+    path: "/auth/callback",
+    name: "auth-callback",
+    component: () => import("@/pages/guest/AuthRedirect.vue"),
+  },
+  {
     path: "/admin",
     name: "admin",
     component: () => import("@/pages/admin/AdminLayout.vue"),
+    redirect: "/admin/overview",
+    beforeEnter: async (
+      _to: RouteLocationNormalized, 
+      _from: RouteLocationNormalized, 
+      next: NavigationGuardNext
+    ) => {
+      const { data } = await supabase.auth.getSession();
+      if (data.session?.access_token) {
+        next();
+      } else {
+        next("/login");
+      }
+    },
     children: [
       {
         path: "overview",
