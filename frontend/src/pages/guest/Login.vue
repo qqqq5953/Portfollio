@@ -43,18 +43,12 @@ const onSubmit = handleSubmit(
 );
 
 const loginWithGoogle = async () => {
-  const redirectTo = `${window.location.origin}/auth/callback`;
-  localStorage.setItem("redirectTo", redirectTo);
-
-  const { data, error } = await supabase.auth.signInWithOAuth({
+  const { error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: redirectTo,
+      redirectTo: `${window.location.origin}/auth/callback`,
     },
   });
-  console.log("data", data);
-  localStorage.setItem("data", JSON.stringify(data));
-
   if (error) {
     console.error("OAuth error:", error.message);
   }
