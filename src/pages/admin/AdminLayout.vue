@@ -15,7 +15,6 @@ import { computed } from "vue";
 import { useRoute } from "vue-router";
 import { useRouter } from "vue-router";
 import { Button } from "@/components/ui/button";
-import Cookies from "js-cookie";
 
 const route = useRoute();
 const router = useRouter();
@@ -23,8 +22,6 @@ const title = computed(() => route.meta.title);
 
 const handleLogout = async () => {
   await supabase.auth.signOut();
-  Cookies.remove("portfolio-access_token");
-  Cookies.remove("portfolio-refresh_token");
   router.replace("/login");
 };
 </script>
