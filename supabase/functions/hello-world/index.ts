@@ -16,12 +16,11 @@ Deno.serve(async (req) => {
     })
   }
   
-  
-  // 法一
   const isLocal = Deno.env.get('LOCAL_DEV') === 'true'
+  const jwt = req.headers.get('Authorization')?.replace('Bearer ', '')
+  const supabaseClient = createSupabaseClient()
+
   if(!isLocal){
-    const supabaseClient = createSupabaseClient()
-    const jwt = req.headers.get('Authorization')?.replace('Bearer ', '')
     const { data: { user }, error } = await supabaseClient.auth.getUser(jwt)
 
     if (error || !user) {
@@ -37,7 +36,7 @@ Deno.serve(async (req) => {
 
   try {
     const { name } = await req.json()
-    const supabaseClient = createSupabaseClient()
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(jwt)
     const {
       data,
       error,
@@ -47,7 +46,8 @@ Deno.serve(async (req) => {
       message: `Hello ${name}!`,
       data,
       user,
-      error
+      error,
+      userError
     }), {
       headers: {
         'Content-Type': 'application/json',
