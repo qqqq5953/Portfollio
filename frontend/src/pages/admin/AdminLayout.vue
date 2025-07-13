@@ -11,14 +11,31 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { supabase } from "@/lib/supabase";
-import { computed } from "vue";
+import { computed, onMounted } from "vue";
 import { useRoute } from "vue-router";
 import { useRouter } from "vue-router";
 import { Button } from "@/components/ui/button";
+import { callEdgeFunction } from "@/lib/helper";
+import { FunctionsHttpError } from "@supabase/supabase-js";
 
 const route = useRoute();
 const router = useRouter();
 const title = computed(() => route.meta.title);
+
+onMounted(async () => {
+  const { data, error } = await callEdgeFunction({
+    name: "hello-world",
+    body: {
+      name: "Functions",
+    },
+  });
+  console.log("data", data);
+
+  if (error && error instanceof FunctionsHttpError) {
+    const errorMessage = await error.context.json();
+    console.log("Function returned an error", errorMessage);
+  }
+});
 
 const handleLogout = async () => {
   await supabase.auth.signOut();
