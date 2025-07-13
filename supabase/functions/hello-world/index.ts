@@ -21,10 +21,11 @@ Deno.serve(async (req) => {
   const isLocal = Deno.env.get('LOCAL_DEV') === 'true'
   if(!isLocal){
     const supabaseClient = createSupabaseClient()
-    const { data: { user }, error } = await supabaseClient.auth.getUser()
+    const jwt = req.headers.get('Authorization')?.replace('Bearer ', '')
+    const { data: { user }, error } = await supabaseClient.auth.getUser(jwt)
 
     if (error || !user) {
-      return new Response(JSON.stringify({ data: { user }, error}), {
+      return new Response(JSON.stringify({ data: { user, jwt }, error}), {
         status: 401,
         headers: {
           'Content-Type': 'application/json',
