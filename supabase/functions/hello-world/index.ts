@@ -4,64 +4,10 @@
 
 // Setup type definitions for built-in Supabase Runtime APIs
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
-import { createClient } from "jsr:@supabase/supabase-js"
-
-export const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': '*',
-  // 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+import { corsHeaders } from "../shared/helper.ts"
+import { createSupabaseClient } from '../shared/supabaseClient.ts'
 
 Deno.serve(async (req) => {
-  // const isLocal = Deno.env.get('LOCAL_DEV') === 'true'
-
-  // 法一
-  // if(!isLocal){
-  //   // ✅ Get JWT from the frontend request
-  //   const jwt = req.headers.get('Authorization')?.replace('Bearer ', '')
-
-  //   // ✅ Create a Supabase client using the SERVICE_ROLE key (server-side only)
-  //   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-  //   const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  //   const supabase = createClient(
-  //     supabaseUrl,
-  //     supabaseServiceRoleKey,
-  //     {
-  //       global: {
-  //         headers: { Authorization: `Bearer ${jwt}` },
-  //       },
-  //     }
-  //   )
-
-  //   // ✅ Verify and extract the user
-  //   const { data: { user }, error } = await supabase.auth.getUser()
-
-    // if (!user) {
-    //   return new Response(JSON.stringify({user, error, isLocal}), { status: 401 })
-    // }
-  // }
-
-  // 法二
-  // const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-  // const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!
-  // const supabaseClient = createClient(
-  //   supabaseUrl,
-  //   supabaseAnonKey,
-  //   {
-  //     global: {
-  //       headers: { Authorization: req.headers.get('Authorization')! },
-  //     },
-  //   }
-  // )
-  
-  // const authHeader = req.headers.get('Authorization')!
-  // const token = authHeader.replace('Bearer ', '')
-  // const { data: { user }, error } = await supabaseClient.auth.getUser(token)
-
-  // if (!user) {
-  //   return new Response(JSON.stringify({user, error, token}), { status: 401 })
-  // }
-
   if (req.method === 'OPTIONS') {
     // Preflight request
     return new Response(null, {
@@ -69,14 +15,39 @@ Deno.serve(async (req) => {
       headers: corsHeaders
     })
   }
+  
+  
+  // 法一
+  const isLocal = Deno.env.get('LOCAL_DEV') === 'true'
+  if(!isLocal){
+    const supabaseClient = createSupabaseClient()
+    const { data: { user }, error } = await supabaseClient.auth.getUser()
+
+    if (error || !user) {
+      return new Response(JSON.stringify({ data: { user }, error}), {
+        status: 401,
+        headers: {
+          'Content-Type': 'application/json',
+          ...corsHeaders
+        }
+      })
+    }
+  }
 
   try {
     const { name } = await req.json()
-    const data = {
-      message: `Hello ${name}!`,
-    }
+    const supabaseClient = createSupabaseClient()
+    const {
+      data,
+      error,
+    } = await supabaseClient.auth.getSession()
   
-    return new Response(JSON.stringify({data}), {
+    return new Response(JSON.stringify({
+      message: `Hello ${name}!`,
+      data,
+      user,
+      error
+    }), {
       headers: {
         'Content-Type': 'application/json',
         ...corsHeaders
