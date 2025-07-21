@@ -37,6 +37,8 @@ import {
   today,
 } from "@internationalized/date";
 import { toDate } from "reka-ui/date";
+import { callEdgeFunction } from "@/lib/helper";
+import { supabase } from "@/lib/supabase";
 
 const df = new DateFormatter("en-US", {
   dateStyle: "long",
@@ -51,7 +53,7 @@ const formSchema = z.object({
   price: z
     .number({ required_error: "Price is required." })
     .min(1, "Price must be at least 1"),
-  transectionType: z.enum(["buy", "sell"]),
+  transactionType: z.enum(["buy", "sell"]),
   currency: z.enum(["USD", "TWD"]),
   date: z.string().min(1, "Date is required."),
   fee: z.number().optional(),
@@ -62,15 +64,15 @@ const formSchema = z.object({
 const { handleSubmit, values, setFieldValue, resetForm } = useForm({
   validationSchema: toTypedSchema(formSchema),
   initialValues: {
-    symbol: "",
-    share: undefined,
-    price: undefined,
-    transectionType: "buy",
+    symbol: "AAPL",
+    share: 1,
+    price: 100,
+    transactionType: "buy",
     currency: "USD",
     date: today(getLocalTimeZone()).toString(),
-    fee: undefined,
-    tax: undefined,
-    note: "",
+    fee: 1,
+    tax: 1,
+    note: "123",
   },
 });
 
@@ -79,15 +81,33 @@ const dateValue = computed({
   set: (val) => val,
 });
 
-const onSubmit = handleSubmit((values) => {
+const onSubmit = handleSubmit(async (values) => {
   console.log(values);
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  const { data, error } = await callEdgeFunction({
+    name: "transaction-create",
+    body: {
+      ...values,
+      userId: session?.user?.id || "",
+    },
+  });
+
+  if (error) {
+    console.error(error);
+  }
+
+  if (data) {
+    console.log(data);
+  }
 });
 </script>
 
 <template>
   <form @submit="onSubmit" class="space-y-6">
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-      <FormField name="transectionType" v-slot="{ componentField }">
+      <FormField name="transactionType" v-slot="{ componentField }">
         <FormItem>
           <FormLabel>Type<span class="text-xs text-red-500">*</span></FormLabel>
           <FormControl>

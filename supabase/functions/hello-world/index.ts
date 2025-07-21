@@ -9,7 +9,6 @@ import { createSupabaseClient } from '../shared/supabaseClient.ts'
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    // Preflight request
     return new Response(null, {
       status: 204,
       headers: corsHeaders

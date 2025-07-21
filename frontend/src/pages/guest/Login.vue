@@ -13,6 +13,9 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useRouter } from "vue-router";
+
+const router = useRouter();
 
 const formSchema = z.object({
   email: z.string().email(),
@@ -22,8 +25,8 @@ const formSchema = z.object({
 const { handleSubmit } = useForm({
   validationSchema: toTypedSchema(formSchema),
   initialValues: {
-    email: "",
-    password: "",
+    email: "test@example.com",
+    password: "00000000",
   },
 });
 
@@ -38,6 +41,7 @@ const onSubmit = handleSubmit(
       console.error("Login error:", error.message);
     } else {
       console.log("User:", data.user);
+      router.push("/admin/overview");
     }
   }
 );
