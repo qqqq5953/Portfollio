@@ -37,13 +37,88 @@ import {
   today,
 } from "@internationalized/date";
 import { toDate } from "reka-ui/date";
-import { callEdgeFunction } from "@/lib/helper";
+import { callEdgeFunction, debounce } from "@/lib/helper";
 import { supabase } from "@/lib/supabase";
 
 const df = new DateFormatter("en-US", {
   dateStyle: "long",
 });
 const placeholder = ref();
+
+// Add validation state
+const isValidatingSymbol = ref(false);
+const symbolValidation = ref({
+  status: "idle" as "valid" | "invalid" | "idle",
+  message: "",
+});
+
+// Symbol validation function
+const validateSymbol = async (symbol: string) => {
+  if (!symbol || symbol.length < 1) {
+    symbolValidation.value = {
+      status: "idle",
+      message: "",
+    };
+    return;
+  }
+
+  isValidatingSymbol.value = true;
+  // symbolValidation.value.status = "idle";
+
+  try {
+    const response = await fetch(
+      `https://ws.api.cnyes.com/ws/api/v1/quote/quotes/USS:${symbol.toUpperCase()}:STOCK?column=M`
+    );
+
+    if (response.ok) {
+      const res = await response.json();
+      if (res.statusCode === 200 && res.data && res.data.length > 0) {
+        symbolValidation.value = {
+          status: "valid",
+          message: `✓ ${res.data[0]["200009"] || symbol}`,
+        };
+      } else {
+        symbolValidation.value = {
+          status: "invalid",
+          message: "✗ Invalid symbol",
+        };
+      }
+    } else {
+      symbolValidation.value = {
+        status: "invalid",
+        message: "✗ Invalid symbol",
+      };
+    }
+  } catch (error) {
+    console.error("Symbol validation error:", error);
+    symbolValidation.value = {
+      status: "invalid",
+      message: "✗ Error validating symbol",
+    };
+  } finally {
+    isValidatingSymbol.value = false;
+  }
+};
+
+// Create debounced validation function (500ms delay)
+const debouncedValidateSymbol = debounce(
+  validateSymbol,
+  500,
+  () => values.symbol // Pure function - pass current value getter
+);
+
+// Handle symbol input event
+const handleSymbolInput = (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  const symbol = target.value.trim();
+
+  if (symbol && symbol.length > 0) {
+    debouncedValidateSymbol(symbol);
+  } else {
+    symbolValidation.value.status = "idle";
+    symbolValidation.value.message = "";
+  }
+};
 
 const formSchema = z.object({
   symbol: z.string().min(1, "Symbol is required."),
@@ -64,15 +139,15 @@ const formSchema = z.object({
 const { handleSubmit, values, setFieldValue, resetForm } = useForm({
   validationSchema: toTypedSchema(formSchema),
   initialValues: {
-    symbol: "AAPL",
-    share: 1,
-    price: 100,
+    symbol: "",
+    share: undefined,
+    price: undefined,
     transactionType: "buy",
     currency: "USD",
     date: today(getLocalTimeZone()).toString(),
-    fee: 1,
-    tax: 1,
-    note: "123",
+    fee: undefined,
+    tax: undefined,
+    note: undefined,
   },
 });
 
@@ -82,10 +157,12 @@ const dateValue = computed({
 });
 
 const onSubmit = handleSubmit(async (values) => {
-  console.log(values);
+  if (symbolValidation.value.status === "invalid") return;
+
   const {
     data: { session },
   } = await supabase.auth.getSession();
+
   const { data, error } = await callEdgeFunction({
     name: "transaction-create",
     body: {
@@ -100,6 +177,7 @@ const onSubmit = handleSubmit(async (values) => {
 
   if (data) {
     console.log(data);
+    resetForm();
   }
 });
 </script>
@@ -157,10 +235,47 @@ const onSubmit = handleSubmit(async (values) => {
     <FormField name="symbol" v-slot="{ componentField }">
       <FormItem>
         <FormLabel>Symbol<span class="text-xs text-red-500">*</span></FormLabel>
-        <FormControl>
-          <Input placeholder="2330, AAPL, ..." v-bind="componentField" />
-        </FormControl>
+        <div class="relative">
+          <FormControl>
+            <Input
+              placeholder="2330, AAPL, ..."
+              v-bind="componentField"
+              @input="handleSymbolInput"
+              :class="[
+                symbolValidation.status === 'valid'
+                  ? 'border-green-500 focus-visible:border-green-500 focus-visible:ring-green-200'
+                  : '',
+                symbolValidation.status === 'invalid'
+                  ? 'border-red-500 focus-visible:border-red-500 focus-visible:ring-red-200'
+                  : '',
+              ]"
+            />
+          </FormControl>
+          <div
+            v-if="symbolValidation.status === 'valid'"
+            class="absolute right-3 top-1/2 transform -translate-y-1/2"
+          >
+            <span class="text-green-500 text-sm">✓</span>
+          </div>
+          <div
+            v-else-if="symbolValidation.status === 'invalid'"
+            class="absolute right-3 top-1/2 transform -translate-y-1/2"
+          >
+            <span class="text-red-500 text-sm">✗</span>
+          </div>
+        </div>
         <FormMessage />
+        <div
+          v-if="symbolValidation.message"
+          :class="[
+            'text-xs mt-1',
+            symbolValidation.status === 'valid'
+              ? 'text-green-600'
+              : 'text-red-600',
+          ]"
+        >
+          {{ symbolValidation.message }}
+        </div>
       </FormItem>
     </FormField>
 
@@ -288,7 +403,7 @@ const onSubmit = handleSubmit(async (values) => {
 
     <div class="flex gap-2 justify-end">
       <Button type="button" variant="outline" @click="resetForm">Cancel</Button>
-      <Button type="submit">Submit</Button>
+      <Button type="submit"> Submit </Button>
     </div>
   </form>
 </template>
