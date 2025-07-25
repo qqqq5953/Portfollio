@@ -2,7 +2,7 @@
 import { toTypedSchema } from "@vee-validate/zod";
 import { useForm } from "vee-validate";
 import { z } from "zod";
-import { ref, computed, watchEffect } from "vue";
+import { ref, computed } from "vue";
 
 import {
   FormField,
@@ -50,7 +50,7 @@ const placeholder = ref();
 
 const formSchema = z.object({
   side: z.enum(["buy", "sell"]),
-  market: z.enum(["USS", "TWS"]),
+  market: z.enum(["US", "TW"]),
   date: z.string().min(1, "Date is required."),
   symbol: z.string().min(1, "Symbol is required."),
   share: z
@@ -66,24 +66,25 @@ const formSchema = z.object({
   note: z.string().optional(),
 });
 
-const { handleSubmit, values, setFieldValue, resetForm } = useForm({
-  validationSchema: toTypedSchema(formSchema),
-  initialValues: {
-    side: "buy",
-    market: "USS",
-    date: "", // 将由 setDefaultDate 函数设置
-    symbol: "",
-    share: undefined,
-    cost: undefined,
-    exchangeRate: undefined,
-    fee: undefined,
-    tax: undefined,
-    note: undefined,
-  },
-});
+const { handleSubmit, values, setFieldValue, resetForm, setFieldError } =
+  useForm({
+    validationSchema: toTypedSchema(formSchema),
+    initialValues: {
+      side: "buy",
+      market: "US",
+      date: "", // 将由 setDefaultDate 函数设置
+      symbol: "",
+      share: undefined,
+      cost: undefined,
+      exchangeRate: undefined,
+      fee: undefined,
+      tax: undefined,
+      note: undefined,
+    },
+  });
 
 const currency = computed(() => {
-  return values.market === "USS" ? "USD" : "TWD";
+  return values.market === "US" ? "USD" : "TWD";
 });
 
 const dateValue = computed({
@@ -114,7 +115,7 @@ function isDisabledDate(calenderDateValue: DateValue) {
   const isCheckingToday = isToday(calenderDateValue, getLocalTimeZone());
   const isCheckingYesterday = calenderDateValue.compare(yesterdayDate) === 0;
 
-  if (values.market === "TWS") {
+  if (values.market === "TW") {
     // 台股：只處理今天的情況，如果現在時間在13:30前，則禁用今天日期
     if (isCheckingToday) {
       const marketCloseMinutes = 13 * 60 + 30; // 13:30
@@ -122,7 +123,7 @@ function isDisabledDate(calenderDateValue: DateValue) {
         return true;
       }
     }
-  } else if (values.market === "USS") {
+  } else if (values.market === "US") {
     const nyNow = taipeiNow.setZone("America/New_York");
     const isDST = nyNow.offset === -240;
 
@@ -240,10 +241,6 @@ async function fetchExchangeRate(date: string) {
   }
 }
 
-watchEffect(() => {
-  if (values.date) fetchExchangeRate(values.date);
-});
-
 // Symbol validation
 const isValidatingSymbol = ref(false);
 const symbolValidation = ref({
@@ -252,13 +249,14 @@ const symbolValidation = ref({
 });
 
 const debouncedValidateSymbol = debounce(
-  validateSymbol,
+  validateSymbolAndFetchPrice,
   500,
   () => values.symbol // Pure function - pass current value getter
 );
 
-async function validateSymbol(symbol: string) {
-  console.log("symbol", symbol);
+const closingPrice = ref();
+
+async function validateSymbolAndFetchPrice(symbol: string) {
   if (!symbol || symbol.length < 1) {
     symbolValidation.value = {
       status: "idle",
@@ -269,30 +267,41 @@ async function validateSymbol(symbol: string) {
 
   isValidatingSymbol.value = true;
 
-  try {
-    const response = await fetch(
-      `https://ws.api.cnyes.com/ws/api/v1/esg/state/${values.market}:${symbol}:STOCK`
-    );
+  const endpoint =
+    values.market === "US"
+      ? `https://ws.api.cnyes.com/ws/api/v1/esg/state/USS:${symbol}:STOCK`
+      : `https://ws.api.cnyes.com/internal/ws/api/v1/checkTWStock/${symbol}`;
 
-    if (response.ok) {
-      const res = await response.json();
-      if (res.statusCode === 200) {
-        symbolValidation.value = {
-          status: "valid",
-          message: `✓ Valid symbol`,
-        };
-      } else {
-        symbolValidation.value = {
-          status: "invalid",
-          message: "✗ Invalid symbol or wrong market",
-        };
-      }
-    } else {
+  try {
+    const response = await fetch(endpoint);
+    if (!response.ok) {
       symbolValidation.value = {
         status: "invalid",
         message: "✗ Invalid symbol or wrong market",
       };
+      return;
     }
+
+    const res = await response.json();
+    if (res.statusCode !== 200) {
+      symbolValidation.value = {
+        status: "invalid",
+        message: "✗ Invalid symbol or wrong market",
+      };
+      return;
+    }
+
+    symbolValidation.value = {
+      status: "valid",
+      message: `✓ Valid symbol`,
+    };
+
+    await fetchClosingPrice({
+      status: symbolValidation.value.status,
+      symbol: values.symbol,
+      market: values.market,
+      date: values.date,
+    });
   } catch (error) {
     console.error("Symbol validation error:", error);
     symbolValidation.value = {
@@ -313,6 +322,70 @@ function handleSymbolInput(symbol: string) {
     symbolValidation.value.message = "";
   }
 }
+
+// Closing price fetching
+
+async function fetchClosingPrice({
+  status,
+  symbol,
+  date,
+  market,
+}: {
+  status: "valid" | "idle" | "invalid";
+  date: string | undefined;
+  symbol: string | undefined;
+  market: string | undefined;
+}) {
+  if (status !== "valid" || !symbol || !market || !date) return;
+
+  symbol = market === "US" ? symbol : `${symbol}.TW`;
+  const timestamp = Date.parse(date);
+  const response = await fetch(
+    `/api/historical?symbol=${symbol.toUpperCase()}&start=${timestamp}&end=${
+      timestamp + 86400000
+    }`
+  );
+
+  if (response.ok) {
+    const res = await response.json();
+    if (res.quotes.length > 0) {
+      setFieldValue("closingPrice", Number(res.quotes[0].close.toFixed(2)));
+      closingPrice.value = Number(res.quotes[0].close.toFixed(2));
+    }
+  }
+}
+
+async function handleDateChange(v: DateValue | undefined) {
+  if (v) {
+    setFieldValue("date", v.toString());
+    fetchExchangeRate(v.toString());
+
+    // Fetch closing price if symbol is validated
+    if (
+      symbolValidation.value.status === "valid" &&
+      values.symbol &&
+      values.market
+    ) {
+      fetchClosingPrice({
+        status: symbolValidation.value.status,
+        symbol: values.symbol,
+        market: values.market,
+        date: v.toString(),
+      });
+    }
+  } else {
+    setFieldValue("date", undefined);
+  }
+}
+
+async function handleMarketChange() {
+  setFieldValue("symbol", "");
+  setFieldError("symbol", "");
+  setFieldValue("closingPrice", undefined);
+
+  symbolValidation.value.status = "idle";
+  symbolValidation.value.message = "";
+}
 </script>
 
 <template>
@@ -320,7 +393,12 @@ function handleSymbolInput(symbol: string) {
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
       <FormField name="side" v-slot="{ componentField }">
         <FormItem>
-          <FormLabel>Type<span class="text-xs text-red-500">*</span></FormLabel>
+          <FormLabel>
+            <div>
+              Type
+              <span class="text-xs text-red-500">*</span>
+            </div>
+          </FormLabel>
           <FormControl>
             <RadioGroup class="flex gap-4" v-bind="componentField">
               <FormItem class="flex items-center gap-3">
@@ -342,24 +420,27 @@ function handleSymbolInput(symbol: string) {
 
       <FormField name="market" v-slot="{ componentField }">
         <FormItem>
-          <FormLabel
-            >Market<span class="text-xs text-red-500">*</span></FormLabel
-          >
+          <FormLabel>
+            <div>
+              Market
+              <span class="text-xs text-red-500">*</span>
+            </div>
+          </FormLabel>
           <FormControl>
             <RadioGroup
               class="flex gap-4"
               v-bind="componentField"
-              @change="() => handleSymbolInput(values.symbol || '')"
+              @change="handleMarketChange"
             >
               <FormItem class="flex items-center gap-3">
                 <FormControl>
-                  <RadioGroupItem value="USS" />
+                  <RadioGroupItem value="US" />
                 </FormControl>
                 <FormLabel class="font-normal">US</FormLabel>
               </FormItem>
               <FormItem class="flex items-center gap-3">
                 <FormControl>
-                  <RadioGroupItem value="TWS" />
+                  <RadioGroupItem value="TW" />
                 </FormControl>
                 <FormLabel class="font-normal">TW</FormLabel>
               </FormItem>
@@ -369,61 +450,19 @@ function handleSymbolInput(symbol: string) {
       </FormField>
     </div>
 
-    <FormField name="date">
-      <FormItem class="flex flex-col">
-        <FormLabel>Date<span class="text-xs text-red-500">*</span></FormLabel>
-        <Popover>
-          <PopoverTrigger as-child>
-            <FormControl>
-              <Button
-                variant="outline"
-                :class="
-                  cn(
-                    'ps-3 text-start font-normal',
-                    !dateValue && 'text-muted-foreground'
-                  )
-                "
-              >
-                <span>{{
-                  dateValue ? df.format(toDate(dateValue)) : "Pick a date"
-                }}</span>
-                <CalendarIcon class="ms-auto h-4 w-4 opacity-50" />
-              </Button>
-              <input hidden />
-            </FormControl>
-          </PopoverTrigger>
-          <PopoverContent class="w-auto p-0">
-            <Calendar
-              v-model:placeholder="placeholder"
-              :model-value="dateValue"
-              calendar-label="Transaction Date"
-              :min-value="new CalendarDate(1900, 1, 1)"
-              :max-value="today(getLocalTimeZone())"
-              :is-date-disabled="isDisabledDate"
-              @update:model-value="
-                (v) => {
-                  if (v) {
-                    setFieldValue('date', v.toString());
-                  } else {
-                    setFieldValue('date', undefined);
-                  }
-                }
-              "
-            />
-          </PopoverContent>
-        </Popover>
-        <FormMessage />
-      </FormItem>
-    </FormField>
-
     <FormField name="symbol" v-slot="{ componentField }">
       <FormItem>
-        <FormLabel>Symbol<span class="text-xs text-red-500">*</span></FormLabel>
+        <FormLabel>
+          <div>
+            Symbol
+            <span class="text-xs text-red-500">*</span>
+          </div>
+        </FormLabel>
         <div class="relative">
           <FormControl>
             <Input
               :placeholder="
-                values.market === 'USS' ? 'AAPL, NVDA, ...' : '2330, 2317, ...'
+                values.market === 'US' ? 'AAPL, NVDA, ...' : '2330, 2317, ...'
               "
               v-bind="componentField"
               @input="(e: Event) => handleSymbolInput((e.target as HTMLInputElement).value)"
@@ -453,7 +492,12 @@ function handleSymbolInput(symbol: string) {
 
     <FormField name="share" v-slot="{ componentField }">
       <FormItem>
-        <FormLabel>Share<span class="text-xs text-red-500">*</span></FormLabel>
+        <FormLabel>
+          <div>
+            Share
+            <span class="text-xs text-red-500">*</span>
+          </div>
+        </FormLabel>
         <FormControl>
           <Input placeholder="1" type="number" v-bind="componentField" />
         </FormControl>
@@ -464,8 +508,10 @@ function handleSymbolInput(symbol: string) {
     <FormField name="cost" v-slot="{ componentField }">
       <FormItem>
         <FormLabel>
-          Cost({{ currency }})
-          <span class="text-xs text-red-500">*</span>
+          <div>
+            Cost({{ currency }})
+            <span class="text-xs text-red-500">*</span>
+          </div>
         </FormLabel>
         <FormControl>
           <Input placeholder="100" type="number" v-bind="componentField" />
@@ -474,27 +520,60 @@ function handleSymbolInput(symbol: string) {
       </FormItem>
     </FormField>
 
-    <FormField name="closingPrice" v-slot="{ componentField }">
-      <FormItem>
+    <FormField name="date">
+      <FormItem class="flex flex-col">
         <FormLabel>
-          Closing Price({{ currency }})
-          <span class="text-xs text-red-500">*</span>
+          <div>
+            Date
+            <span class="text-xs text-red-500">*</span>
+          </div>
+          <div class="ml-auto text-xs" v-if="values.closingPrice">
+            <span class="text-neutral-500">Closing Price: </span>
+            <span
+              class="bg-neutral-500 text-neutral-100 ml-1 px-2 py-0.5 rounded-full"
+              >{{ values.closingPrice }}</span
+            >
+          </div>
         </FormLabel>
-        <FormControl>
-          <Input type="number" v-bind="componentField" :disabled="true" />
-        </FormControl>
+        <Popover>
+          <PopoverTrigger as-child>
+            <FormControl>
+              <Button
+                variant="outline"
+                :class="
+                  cn(
+                    'ps-3 text-start font-normal',
+                    !dateValue && 'text-muted-foreground'
+                  )
+                "
+              >
+                <span>{{
+                  dateValue ? df.format(toDate(dateValue)) : "Pick a date"
+                }}</span>
+                <CalendarIcon class="ms-auto h-4 w-4 opacity-50" />
+              </Button>
+              <input hidden />
+            </FormControl>
+          </PopoverTrigger>
+          <PopoverContent class="w-auto p-0">
+            <Calendar
+              v-model:placeholder="placeholder"
+              :model-value="dateValue"
+              calendar-label="Transaction Date"
+              :min-value="new CalendarDate(1900, 1, 1)"
+              :max-value="today(getLocalTimeZone())"
+              :is-date-disabled="isDisabledDate"
+              @update:model-value="handleDateChange"
+            />
+          </PopoverContent>
+        </Popover>
         <FormMessage />
       </FormItem>
     </FormField>
 
     <FormField name="exchangeRate" v-slot="{ componentField }">
       <FormItem>
-        <FormLabel>
-          Exchange Rate (USD → TWD)
-          <span v-if="isLoadingExchangeRate" class="text-xs text-blue-500 ml-2">
-            Loading...
-          </span>
-        </FormLabel>
+        <FormLabel>Exchange Rate (USD → TWD)</FormLabel>
         <div class="relative">
           <FormControl>
             <Input
@@ -505,14 +584,6 @@ function handleSymbolInput(symbol: string) {
               :disabled="true"
               class="disabled:cursor-not-allowed disabled:pointer-events-auto"
             />
-            <div
-              v-if="isLoadingExchangeRate"
-              class="absolute right-3 top-1/2 transform -translate-y-1/2"
-            >
-              <div
-                class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"
-              ></div>
-            </div>
           </FormControl>
         </div>
         <FormMessage />

@@ -25,7 +25,7 @@ const formSchema = z.object({
 const { handleSubmit } = useForm({
   validationSchema: toTypedSchema(formSchema),
   initialValues: {
-    email: "test@example.com",
+    email: "test1@example.com",
     password: "00000000",
   },
 });
