@@ -27,27 +27,35 @@ Deno.serve(async (req) => {
     userId,
     symbol,
     share,
-    price,
-    transactionType,
-    currency,
+    cost,
+    side,
+    market,
+    closingPrice,
+    exchangeRate,
     date,
     fee,
     tax,
     note,
   } = reqBody;
 
-  const { data, error } = await supabaseClient.from('transactions').insert({
+  const currency = market === "US" ? "USD" : "TWD"
+  const payload = {
     user_id: userId,
-    transaction_type: transactionType,
+    side,
     symbol,
     share,
-    price,
+    cost,
     currency,
+    closing_price: closingPrice,
+    exchange_rate: exchangeRate,
     date,
     fee,
     tax,
     note,
-  })
+  }
+  console.log("payload", payload);
+
+  const { data, error } = await supabaseClient.from('transactions').insert(payload)
 
   console.log("Insert result - data:", data);
   console.log("Insert result - error:", error);
