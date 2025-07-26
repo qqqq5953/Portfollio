@@ -26,7 +26,7 @@ import {
   PopoverTrigger,
   PopoverContent,
 } from "@/components/ui/popover";
-import { CalendarIcon } from "lucide-vue-next";
+import { CalendarIcon, RefreshCw } from "lucide-vue-next";
 import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -42,6 +42,7 @@ import { toDate } from "reka-ui/date";
 import { callEdgeFunction, debounce } from "@/lib/helper";
 import { supabase } from "@/lib/supabase";
 import { DateTime } from "luxon";
+import { fetchClosingPrice, fetchExchangeRate } from "@/api/stock";
 
 const df = new DateFormatter("en-US", {
   dateStyle: "long",
@@ -66,22 +67,29 @@ const formSchema = z.object({
   note: z.string().optional(),
 });
 
-const { handleSubmit, values, setFieldValue, resetForm, setFieldError } =
-  useForm({
-    validationSchema: toTypedSchema(formSchema),
-    initialValues: {
-      side: "buy",
-      market: "US",
-      date: "", // 将由 setDefaultDate 函数设置
-      symbol: "",
-      share: undefined,
-      cost: undefined,
-      exchangeRate: undefined,
-      fee: undefined,
-      tax: undefined,
-      note: undefined,
-    },
-  });
+const {
+  handleSubmit,
+  values,
+  setFieldValue,
+  resetForm,
+  setFieldError,
+  errors,
+} = useForm({
+  validationSchema: toTypedSchema(formSchema),
+  initialValues: {
+    side: "buy",
+    market: "US",
+    date: "",
+    symbol: "",
+    share: undefined,
+    cost: undefined,
+    closingPrice: -1,
+    exchangeRate: undefined,
+    fee: undefined,
+    tax: undefined,
+    note: undefined,
+  },
+});
 
 const currency = computed(() => {
   return values.market === "US" ? "USD" : "TWD";
@@ -208,39 +216,6 @@ const onSubmit = handleSubmit(async (values) => {
   }
 });
 
-// Exchange rate fetching
-const isLoadingExchangeRate = ref(false);
-
-async function fetchExchangeRate(date: string) {
-  isLoadingExchangeRate.value = true;
-
-  try {
-    const timestamp = Math.floor(new Date(date).getTime() / 1000);
-    const response = await fetch(
-      `https://ws.api.cnyes.com/ws/api/v1/charting/history?symbol=FX:USDTWD&resolution=D&from=${timestamp}&to=${timestamp}`
-    );
-
-    if (response.ok) {
-      const exchangeRateRes = await response.json();
-
-      if (
-        exchangeRateRes.statusCode === 200 &&
-        exchangeRateRes.data &&
-        exchangeRateRes.data.c[0] > 0
-      ) {
-        setFieldValue("exchangeRate", exchangeRateRes.data.c[0]);
-      }
-    } else {
-      throw new Error("Failed to fetch exchange rate");
-    }
-  } catch (error) {
-    console.error("Exchange rate fetch error:", error);
-    setFieldValue("exchangeRate", 30.5);
-  } finally {
-    isLoadingExchangeRate.value = false;
-  }
-}
-
 // Symbol validation
 const isValidatingSymbol = ref(false);
 const symbolValidation = ref({
@@ -253,8 +228,6 @@ const debouncedValidateSymbol = debounce(
   500,
   () => values.symbol // Pure function - pass current value getter
 );
-
-const closingPrice = ref();
 
 async function validateSymbolAndFetchPrice(symbol: string) {
   if (!symbol || symbol.length < 1) {
@@ -296,7 +269,9 @@ async function validateSymbolAndFetchPrice(symbol: string) {
       message: `✓ Valid symbol`,
     };
 
-    await fetchClosingPrice({
+    if (!values.date) return;
+
+    await handleFetchClosingPrice({
       status: symbolValidation.value.status,
       symbol: values.symbol,
       market: values.market,
@@ -323,9 +298,41 @@ function handleSymbolInput(symbol: string) {
   }
 }
 
+// Exchange rate fetching
+const isLoadingExchangeRate = ref(false);
+
+async function handleFetchExchangeRate(date: string) {
+  if (values.market === "TW") {
+    setFieldValue("exchangeRate", 1);
+    return;
+  }
+
+  try {
+    const res = await fetchExchangeRate(date);
+
+    if (
+      res.data.statusCode === 200 &&
+      res.data.data.h[0] > 0 &&
+      res.data.data.l[0] > 0
+    ) {
+      setFieldValue(
+        "exchangeRate",
+        (res.data.data.h[0] + res.data.data.l[0]) / 2
+      );
+    } else {
+      setFieldError("exchangeRate", "Failed to fetch exchange rate");
+    }
+  } catch (error) {
+    console.error("Exchange rate fetch error:", error);
+    setFieldError("exchangeRate", "Failed to fetch exchange rate");
+  } finally {
+    isLoadingExchangeRate.value = false;
+  }
+}
+
 // Closing price fetching
 
-async function fetchClosingPrice({
+async function handleFetchClosingPrice({
   status,
   symbol,
   date,
@@ -336,52 +343,66 @@ async function fetchClosingPrice({
   symbol: string | undefined;
   market: string | undefined;
 }) {
-  if (status !== "valid" || !symbol || !market || !date) return;
-
-  symbol = market === "US" ? symbol : `${symbol}.TW`;
-  const timestamp = Date.parse(date);
-  const response = await fetch(
-    `/api/historical?symbol=${symbol.toUpperCase()}&start=${timestamp}&end=${
-      timestamp + 86400000
-    }`
-  );
-
-  if (response.ok) {
-    const res = await response.json();
-    if (res.quotes.length > 0) {
-      setFieldValue("closingPrice", Number(res.quotes[0].close.toFixed(2)));
-      closingPrice.value = Number(res.quotes[0].close.toFixed(2));
-    }
+  if (status !== "valid" || !symbol) {
+    setFieldError("symbol", "Invalid symbol");
+    return;
   }
-}
+  if (!market) {
+    setFieldError("market", "Market is required");
+    return;
+  }
+  if (!date) {
+    setFieldError("date", "Date is required");
+    return;
+  }
 
-async function handleDateChange(v: DateValue | undefined) {
-  if (v) {
-    setFieldValue("date", v.toString());
-    fetchExchangeRate(v.toString());
+  const res = await fetchClosingPrice({
+    symbol: market === "US" ? symbol : `${symbol}.TW`,
+    date,
+  });
 
-    // Fetch closing price if symbol is validated
-    if (
-      symbolValidation.value.status === "valid" &&
-      values.symbol &&
-      values.market
-    ) {
-      fetchClosingPrice({
-        status: symbolValidation.value.status,
-        symbol: values.symbol,
-        market: values.market,
-        date: v.toString(),
-      });
-    }
+  if (res.data.quotes.length > 0) {
+    setFieldValue(
+      "closingPrice",
+      Math.round(res.data.quotes[0].close * 100) / 100
+    );
   } else {
-    setFieldValue("date", undefined);
+    setFieldError("closingPrice", "Failed to fetch closing price");
   }
 }
 
-async function handleMarketChange() {
-  setFieldValue("symbol", "");
-  setFieldError("symbol", "");
-  setFieldValue("closingPrice", undefined);
+async function handleDateChange(dateValue: DateValue | undefined) {
+  if (!dateValue) return setFieldValue("date", undefined);
+
+  setFieldValue("date", dateValue.toString());
+  handleFetchExchangeRate(dateValue.toString());
+
+  if (
+    symbolValidation.value.status === "valid" &&
+    values.symbol &&
+    values.market
+  ) {
+    handleFetchClosingPrice({
+      status: symbolValidation.value.status,
+      symbol: values.symbol,
+      market: values.market,
+      date: dateValue.toString(),
+    });
+  }
+}
+
+async function handleMarketChange(e: Event) {
+  const market = (e.target as HTMLInputElement).value as "US" | "TW";
+  setFieldValue("exchangeRate", market === "TW" ? 1 : undefined);
+  setFieldValue("closingPrice", -1);
+  if (values.symbol) {
+    resetForm({
+      values: {
+        ...values,
+        symbol: "",
+      },
+    });
+  }
 
   symbolValidation.value.status = "idle";
   symbolValidation.value.message = "";
@@ -527,12 +548,34 @@ async function handleMarketChange() {
             Date
             <span class="text-xs text-red-500">*</span>
           </div>
-          <div class="ml-auto text-xs" v-if="values.closingPrice">
-            <span class="text-neutral-500">Closing Price: </span>
-            <span
-              class="bg-neutral-500 text-neutral-100 ml-1 px-2 py-0.5 rounded-full"
-              >{{ values.closingPrice }}</span
-            >
+          <div class="ml-auto text-xs">
+            <div v-if="errors.closingPrice">
+              <span class="text-red-500 mr-1">{{ errors.closingPrice }}</span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                @click="
+                  handleFetchClosingPrice({
+                    status: symbolValidation.status,
+                    symbol: values.symbol,
+                    market: values.market,
+                    date: values.date,
+                  })
+                "
+                :disabled="isLoadingExchangeRate"
+                class="h-6 px-2 text-xs [&_svg:not([class*='size-'])]:size-3"
+              >
+                <RefreshCw /> Refresh
+              </Button>
+            </div>
+            <div v-else-if="values.closingPrice !== -1">
+              <span class="text-neutral-500">Closing Price: </span>
+              <span
+                class="bg-neutral-500 text-neutral-100 ml-1 px-2 py-0.5 rounded-full"
+                >{{ values.closingPrice }}</span
+              >
+            </div>
           </div>
         </FormLabel>
         <Popover>
@@ -573,11 +616,31 @@ async function handleMarketChange() {
 
     <FormField name="exchangeRate" v-slot="{ componentField }">
       <FormItem>
-        <FormLabel>Exchange Rate (USD → TWD)</FormLabel>
+        <FormLabel>
+          <div>
+            Exchange Rate ({{ currency }} → TWD)
+            <span class="text-xs text-red-500">*</span>
+          </div>
+          <div class="ml-auto text-xs">
+            <div v-if="errors.exchangeRate">
+              <span class="text-red-500 mr-1">{{ errors.exchangeRate }}</span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                @click="handleFetchExchangeRate"
+                :disabled="isLoadingExchangeRate"
+                class="h-6 px-2 text-xs [&_svg:not([class*='size-'])]:size-3"
+              >
+                <RefreshCw /> Refresh
+              </Button>
+            </div>
+          </div>
+        </FormLabel>
         <div class="relative">
           <FormControl>
             <Input
-              placeholder="30.5"
+              placeholder="USD:TWD"
               type="number"
               step="0.01"
               v-bind="componentField"
@@ -591,16 +654,6 @@ async function handleMarketChange() {
           <div class="text-xs text-gray-500">
             Rate is automatically fetched. You can manually override if needed.
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            @click="fetchExchangeRate"
-            :disabled="isLoadingExchangeRate"
-            class="h-6 px-2 text-xs"
-          >
-            🔄 Refresh
-          </Button>
         </div>
       </FormItem>
     </FormField>
