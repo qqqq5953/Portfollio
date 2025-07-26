@@ -310,15 +310,8 @@ async function handleFetchExchangeRate(date: string) {
   try {
     const res = await fetchExchangeRate(date);
 
-    if (
-      res.data.statusCode === 200 &&
-      res.data.data.h[0] > 0 &&
-      res.data.data.l[0] > 0
-    ) {
-      setFieldValue(
-        "exchangeRate",
-        (res.data.data.h[0] + res.data.data.l[0]) / 2
-      );
+    if (res.statusCode === 200 && res.data.h[0] > 0 && res.data.l[0] > 0) {
+      setFieldValue("exchangeRate", (res.data.h[0] + res.data.l[0]) / 2);
     } else {
       setFieldError("exchangeRate", "Failed to fetch exchange rate");
     }
@@ -361,11 +354,8 @@ async function handleFetchClosingPrice({
     date,
   });
 
-  if (res.data.quotes.length > 0) {
-    setFieldValue(
-      "closingPrice",
-      Math.round(res.data.quotes[0].close * 100) / 100
-    );
+  if (res.quotes.length > 0) {
+    setFieldValue("closingPrice", Math.round(res.quotes[0].close * 100) / 100);
   } else {
     setFieldError("closingPrice", "Failed to fetch closing price");
   }

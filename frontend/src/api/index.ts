@@ -1,36 +1,35 @@
-import type {
-  AxiosError,
-  AxiosInstance,
-  InternalAxiosRequestConfig,
-} from 'axios'
-import axios from 'axios'
+import axios, { type AxiosRequestConfig } from "axios"
 
-// Create axios instance
-const api: AxiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_ENDPOINT || '/api/v1',
-  headers: {
-    'Content-Type': 'application/json',
+export const fetcher = {
+  get: async <ApiResponse>(
+    url: string,
+    config?: AxiosRequestConfig,
+  ): Promise<ApiResponse> => {
+    const response = await axios.get(url, config)
+    return response.data
   },
-})
-
-// Request interceptor
-api.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
-    return config
+  post: async <Data, ApiResponse>(
+    url: string,
+    data?: Data,
+    config?: AxiosRequestConfig,
+  ): Promise<ApiResponse> => {
+    const response = await axios.post(url, data, config)
+    return response.data
   },
-  (error: AxiosError) => {
-    return Promise.reject(error)
+  put: async <Data, ApiResponse>(
+    url: string,
+    data?: Data,
+    config?: AxiosRequestConfig,
+  ): Promise<ApiResponse> => {
+    const response = await axios.put(url, data, config)
+    return response.data
   },
-)
-
-// Response interceptor
-api.interceptors.response.use(
-  (response) => {
-    return response
+  delete: async <Data, ApiResponse>(
+    url: string,
+    data?: Data,
+    config?: AxiosRequestConfig,
+  ): Promise<ApiResponse> => {
+    const response = await axios.delete(url, { data, ...config })
+    return response.data
   },
-  (error: AxiosError) => {
-    return Promise.reject(error)
-  },
-)
-
-export default api
+}
