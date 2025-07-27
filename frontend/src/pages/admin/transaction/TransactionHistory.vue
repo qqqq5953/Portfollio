@@ -9,7 +9,78 @@ import {
   TableCell,
   TableHead,
 } from "@/components/ui/table";
-import { Plus } from "lucide-vue-next";
+import { Plus, Loader2 } from "lucide-vue-next";
+import { callEdgeFunction } from "@/lib/helper";
+import { supabase } from "@/lib/supabase";
+import { onMounted, ref } from "vue";
+import { toast } from "vue-sonner";
+
+type Side = "buy" | "sell";
+type Transaction = {
+  id: string;
+  symbol: string;
+  cost: number;
+  closing_price: number;
+  share: number;
+  side: Side;
+  currency: "USD" | "TWD";
+  exchange_rate: number;
+  date: string;
+  created_at: string;
+};
+
+const transactions = ref<any[]>([]);
+const totalCost = ref(0);
+const isTransactionLoading = ref(false);
+const selectedSide = ref<Side>("buy");
+
+async function fetchTransactions(side: Side) {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  const { data, error } = await callEdgeFunction<Transaction[]>({
+    name: "transaction-read",
+    body: {
+      userId: session?.user?.id || "",
+      side,
+    },
+  });
+
+  if (error) toast.error("Error fetching transactions");
+  return { data, error };
+}
+
+async function handleDisplayTransactions(side: Side) {
+  isTransactionLoading.value = true;
+  const { data } = await fetchTransactions(side);
+
+  if (data) {
+    transactions.value =
+      data?.map((item) => {
+        return {
+          ...item,
+          roi: (((item.closing_price - item.cost) / item.cost) * 100).toFixed(
+            2
+          ),
+          gain_loss: (item.closing_price - item.cost).toFixed(2),
+          value: (item.closing_price * item.share).toFixed(2),
+          avg_cost: (item.cost / item.share).toFixed(2),
+        };
+      }) ?? [];
+
+    totalCost.value = transactions.value.reduce(
+      (acc, item) => acc + item.cost,
+      0
+    );
+  }
+
+  isTransactionLoading.value = false;
+}
+
+onMounted(async () => {
+  await handleDisplayTransactions(selectedSide.value);
+});
 </script>
 
 <template>
@@ -24,42 +95,80 @@ import { Plus } from "lucide-vue-next";
       </RouterLink>
     </div>
     <div class="space-y-6">
-      <Tabs defaultValue="buy">
+      <Tabs
+        v-model="selectedSide"
+        @update:model-value="(side) => handleDisplayTransactions(side as Side)"
+      >
         <TabsList class="w-full md:w-1/2 mx-auto">
           <TabsTrigger value="buy">Buy</TabsTrigger>
           <TabsTrigger value="sell">Sell</TabsTrigger>
         </TabsList>
         <TabsContent value="buy" class="flex flex-col gap-4 py-4">
-          <Card class="w-full md:w-1/2 mx-auto">
+          <div v-if="isTransactionLoading">
+            <div class="flex items-center justify-center">
+              <Loader2 class="animate-spin" />
+            </div>
+          </div>
+          <Card v-else class="w-full md:w-1/2 mx-auto">
             <CardContent>
               <div class="text-sm text-muted-foreground text-center">
                 Total Cost
               </div>
               <div class="flex items-end justify-center gap-2">
-                <span class="text-2xl font-bold">$100</span>
+                <span class="text-2xl font-bold">${{ totalCost }}</span>
                 <span class="text-sm text-muted-foreground mb-1 font-medium"
                   >USD</span
                 >
               </div>
             </CardContent>
           </Card>
+
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Date</TableHead>
                 <TableHead>Ticker</TableHead>
-                <TableHead>ROI</TableHead>
-                <TableHead>Gain/Loss</TableHead>
-                <TableHead>Value</TableHead>
-                <TableHead>Avg Cost</TableHead>
+                <TableHead class="text-right">ROI</TableHead>
+                <TableHead class="text-right">Gain/Loss</TableHead>
+                <TableHead class="text-right">Share</TableHead>
+                <TableHead class="text-right">Avg Cost</TableHead>
+                <TableHead class="text-right">Total Value</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              <TableRow>
-                <TableCell class="font-medium">AAPL</TableCell>
-                <TableCell>10%</TableCell>
-                <TableCell>200</TableCell>
-                <TableCell>3000</TableCell>
-                <TableCell>150</TableCell>
+              <TableRow
+                v-for="transaction in transactions"
+                :key="transaction.id"
+              >
+                <TableCell>{{ transaction.date }}</TableCell>
+                <TableCell class="font-medium">{{
+                  transaction.symbol
+                }}</TableCell>
+                <TableCell
+                  :class="{
+                    'text-red-500': transaction.roi < 0,
+                    'text-green-500': transaction.roi > 0,
+                  }"
+                  class="text-right"
+                  >{{ transaction.roi }} %</TableCell
+                >
+                <TableCell
+                  :class="{
+                    'text-red-500': transaction.gain_loss < 0,
+                    'text-green-500': transaction.gain_loss > 0,
+                  }"
+                  class="text-right"
+                  >{{ transaction.gain_loss }}
+                </TableCell>
+                <TableCell class="text-right">{{
+                  transaction.share
+                }}</TableCell>
+                <TableCell class="text-right"
+                  >{{ transaction.avg_cost }}
+                </TableCell>
+                <TableCell class="text-right">{{
+                  transaction.value
+                }}</TableCell>
               </TableRow>
             </TableBody>
           </Table>
@@ -91,20 +200,49 @@ import { Plus } from "lucide-vue-next";
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Date</TableHead>
                 <TableHead>Ticker</TableHead>
-                <TableHead>ROI</TableHead>
-                <TableHead>Gain/Loss</TableHead>
-                <TableHead>Value</TableHead>
-                <TableHead>Avg Cost</TableHead>
+                <TableHead class="text-right">ROI</TableHead>
+                <TableHead class="text-right">Gain/Loss</TableHead>
+                <TableHead class="text-right">Share</TableHead>
+                <TableHead class="text-right">Avg Cost</TableHead>
+                <TableHead class="text-right">Total Value</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              <TableRow>
-                <TableCell class="font-medium">AAPL</TableCell>
-                <TableCell>10%</TableCell>
-                <TableCell>200</TableCell>
-                <TableCell>3000</TableCell>
-                <TableCell>150</TableCell>
+              <TableRow
+                v-for="transaction in transactions"
+                :key="transaction.id"
+              >
+                <TableCell>{{ transaction.date }}</TableCell>
+                <TableCell class="font-medium">{{
+                  transaction.symbol
+                }}</TableCell>
+                <TableCell
+                  :class="{
+                    'text-red-500': transaction.roi < 0,
+                    'text-green-500': transaction.roi > 0,
+                  }"
+                  class="text-right"
+                  >{{ transaction.roi }} %</TableCell
+                >
+                <TableCell
+                  :class="{
+                    'text-red-500': transaction.gain_loss < 0,
+                    'text-green-500': transaction.gain_loss > 0,
+                  }"
+                  class="text-right"
+                  >{{ transaction.gain_loss }}
+                </TableCell>
+                <TableCell class="text-right">{{
+                  transaction.share
+                }}</TableCell>
+                <TableCell class="text-right"
+                  >{{ transaction.avg_cost }}
+                </TableCell>
+                <TableCell class="text-right">{{
+                  transaction.value
+                }}</TableCell>
               </TableRow>
             </TableBody>
           </Table>

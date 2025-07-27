@@ -29,13 +29,7 @@ export async function callEdgeFunction<T = any>({
         body: JSON.stringify(body ?? {}),
       });
 
-      if (!res.ok) {
-        const errorBody = await res.text();
-        return { data: null, error: { msg: errorBody } };
-      }
-
       const response: EdgeFunctionResponse<T> = await res.json();
-      // Unwrap the nested structure from jsonResponse
       return { data: response.data, error: response.error };
     } catch (error) {
       return { data: null, error: { msg: "Unknown error" } };

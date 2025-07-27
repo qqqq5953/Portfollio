@@ -23,42 +23,15 @@ Deno.serve(async (req) => {
   const reqBody = await req.json();
   console.log("reqBody", reqBody);
 
-  const {
-    userId,
-    symbol,
-    share,
-    cost,
-    side,
-    market,
-    closingPrice,
-    exchangeRate,
-    date,
-    fee,
-    tax,
-    note,
-  } = reqBody;
+  const { userId, side } = reqBody;
 
-  const currency = market === "US" ? "USD" : "TWD"
-  const payload = {
-    user_id: userId,
-    side,
-    symbol,
-    share,
-    cost,
-    currency,
-    closing_price: closingPrice,
-    exchange_rate: exchangeRate,
-    date,
-    fee,
-    tax,
-    note,
-  }
+  const payload = { user_id: userId, side }
   console.log("payload", payload);
 
-  const { data, error } = await supabaseClient.from('transactions').insert(payload)
+  const { data, error } = await supabaseClient.from('transactions').select('id, symbol, cost, closing_price, share, side, currency, exchange_rate, date, created_at').eq('user_id', userId).eq('side', side)
 
-  console.log("Insert result - data:", data);
-  console.log("Insert result - error:", error);
+  console.log("read result - data:", data);
+  console.log("read result - error:", error);
 
-  return jsonResponse({ data: { symbol, share, cost }, error });
+  return jsonResponse({ data, error });
 })
