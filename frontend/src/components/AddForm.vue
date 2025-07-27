@@ -43,6 +43,7 @@ import { callEdgeFunction, debounce } from "@/lib/helper";
 import { supabase } from "@/lib/supabase";
 import { DateTime } from "luxon";
 import { fetchClosingPrice, fetchExchangeRate } from "@/api/stock";
+import { toast } from "vue-sonner";
 
 const df = new DateFormatter("en-US", {
   dateStyle: "long",
@@ -193,7 +194,11 @@ const onSubmit = handleSubmit(async (values) => {
     data: { session },
   } = await supabase.auth.getSession();
 
-  const { data, error } = await callEdgeFunction({
+  const { data, error } = await callEdgeFunction<{
+    symbol: string;
+    share: number;
+    cost: number;
+  }>({
     name: "transaction-create",
     body: {
       ...values,
@@ -203,12 +208,19 @@ const onSubmit = handleSubmit(async (values) => {
   });
 
   if (error) {
-    console.error(error);
+    toast.error("Failed to create transaction", {
+      description: error.msg,
+    });
+    return;
   }
 
   if (data) {
-    console.log(data);
     resetForm();
+    toast.success("Transaction has been created", {
+      description: `Added ${data.symbol.toUpperCase()} @ $${data.cost} × ${
+        data.share
+      } shares`,
+    });
     symbolValidation.value = {
       status: "idle",
       message: "",
@@ -571,12 +583,17 @@ async function handleMarketChange() {
               </Button>
             </div>
             <div
+              v-else-if="values.closingPrice === -1 && isLoadingClosingPrice"
+            >
+              <span class="text-neutral-500">Fetching closing price...</span>
+            </div>
+            <div
               v-else-if="values.closingPrice !== -1"
               :class="isLoadingClosingPrice ? 'animate-pulse' : ''"
             >
               <span class="text-neutral-500">Closing Price: </span>
               <span
-                class="bg-neutral-500 text-neutral-100 ml-1 px-2 py-0.5 rounded-full"
+                class="bg-neutral-600 text-neutral-100 ml-1 px-2 py-0.5 rounded-full"
                 >{{ values.closingPrice }}</span
               >
             </div>
@@ -715,8 +732,16 @@ async function handleMarketChange() {
     </Accordion>
 
     <div class="flex gap-2 justify-end">
-      <Button type="button" variant="outline" @click="resetForm">Cancel</Button>
-      <Button type="submit"> Submit </Button>
+      <Button type="button" variant="ghost" @click="resetForm">Cancel</Button>
+      <Button
+        type="submit"
+        class="bg-indigo-600 hover:bg-indigo-500"
+        :disabled="
+          isLoadingClosingPrice || isLoadingExchangeRate || isValidatingSymbol
+        "
+      >
+        Submit
+      </Button>
     </div>
   </form>
 </template>

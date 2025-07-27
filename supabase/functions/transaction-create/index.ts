@@ -60,5 +60,5 @@ Deno.serve(async (req) => {
   console.log("Insert result - data:", data);
   console.log("Insert result - error:", error);
 
-  return jsonResponse({ data, error });
+  return jsonResponse({ data: error ? null : { symbol, share, cost }, error });
 })
