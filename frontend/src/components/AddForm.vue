@@ -324,6 +324,7 @@ async function handleFetchExchangeRate(date: string) {
 }
 
 // Closing price fetching
+const isLoadingClosingPrice = ref(false);
 
 async function handleFetchClosingPrice({
   status,
@@ -349,15 +350,27 @@ async function handleFetchClosingPrice({
     return;
   }
 
-  const res = await fetchClosingPrice({
-    symbol: market === "US" ? symbol : `${symbol}.TW`,
-    date,
-  });
+  isLoadingClosingPrice.value = true;
 
-  if (res.quotes.length > 0) {
-    setFieldValue("closingPrice", Math.round(res.quotes[0].close * 100) / 100);
-  } else {
+  try {
+    const res = await fetchClosingPrice({
+      symbol: market === "US" ? symbol : `${symbol}.TW`,
+      date,
+    });
+
+    if (res.quotes.length > 0) {
+      setFieldValue(
+        "closingPrice",
+        Math.round(res.quotes[0].close * 100) / 100
+      );
+    } else {
+      setFieldError("closingPrice", "Failed to fetch closing price");
+    }
+  } catch (error) {
+    console.error("Closing price fetch error:", error);
     setFieldError("closingPrice", "Failed to fetch closing price");
+  } finally {
+    isLoadingClosingPrice.value = false;
   }
 }
 
@@ -557,7 +570,10 @@ async function handleMarketChange() {
                 <RefreshCw /> Refresh
               </Button>
             </div>
-            <div v-else-if="values.closingPrice !== -1">
+            <div
+              v-else-if="values.closingPrice !== -1"
+              :class="isLoadingClosingPrice ? 'animate-pulse' : ''"
+            >
               <span class="text-neutral-500">Closing Price: </span>
               <span
                 class="bg-neutral-500 text-neutral-100 ml-1 px-2 py-0.5 rounded-full"
