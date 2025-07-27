@@ -381,9 +381,7 @@ async function handleDateChange(dateValue: DateValue | undefined) {
   }
 }
 
-async function handleMarketChange(e: Event) {
-  const market = (e.target as HTMLInputElement).value as "US" | "TW";
-  setFieldValue("exchangeRate", market === "TW" ? 1 : undefined);
+async function handleMarketChange() {
   setFieldValue("closingPrice", -1);
   if (values.symbol) {
     resetForm({
@@ -608,7 +606,7 @@ async function handleMarketChange(e: Event) {
       <FormItem>
         <FormLabel>
           <div>
-            Exchange Rate ({{ currency }} → TWD)
+            Exchange Rate (USD → TWD)
             <span class="text-xs text-red-500">*</span>
           </div>
           <div class="ml-auto text-xs">
