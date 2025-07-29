@@ -13,7 +13,7 @@
     "reset": "npx supabase db reset",
     "push": "npx supabase db push --linked",
     "restart": "npm run stop && npm run start",
-    "serve": "npx supabase functions serve --debug",
+    "serve": "npx supabase functions serve",
     "deploy": "npx supabase functions deploy"
   },
   "dependencies": {

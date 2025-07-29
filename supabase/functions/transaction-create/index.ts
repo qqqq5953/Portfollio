@@ -38,6 +38,27 @@ Deno.serve(async (req) => {
     note,
   } = reqBody;
 
+  // if side === "sell", select transactions of this user where side === "buy" and check if the share is enough to sell
+  if (side === "sell") {
+    const { data, error } = await supabaseClient
+      .from('transactions')
+      .select('share, side')
+      .eq('user_id', userId)
+      .eq('symbol', symbol)
+    
+    if (error) return jsonResponse({ data, error})
+
+    const buyTransactions = data.filter((transaction: any) => transaction.side === "buy")
+    const sellTransactions = data.filter((transaction: any) => transaction.side === "sell")
+    const totalBuyShares = buyTransactions.reduce((acc, curr) => acc + curr.share, 0)
+    const totalSellShares = sellTransactions.reduce((acc, curr) => acc + curr.share, 0)
+    const remainingShares = totalBuyShares - totalSellShares
+
+    if (remainingShares < share) {
+      return jsonResponse({ data, error: { msg: "Not enough shares to sell" }, status: 400 })
+    }
+  }
+
   const currency = market === "US" ? "USD" : "TWD"
   const payload = {
     user_id: userId,

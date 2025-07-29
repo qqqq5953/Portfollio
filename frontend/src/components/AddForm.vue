@@ -217,7 +217,7 @@ const onSubmit = handleSubmit(async (values) => {
   if (data) {
     resetForm();
     toast.success("Transaction has been created", {
-      description: `Added ${data.symbol.toUpperCase()} @ $${data.cost} × ${
+      description: `${values.side.charAt(0).toUpperCase() + values.side.slice(1)} ${data.symbol.toUpperCase()} @ $${data.cost} × ${
         data.share
       } shares`,
     });

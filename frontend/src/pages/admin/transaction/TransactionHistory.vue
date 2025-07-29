@@ -54,7 +54,7 @@ async function fetchTransactions(side: Side) {
 async function handleDisplayTransactions(side: Side) {
   isTransactionLoading.value = true;
   const { data } = await fetchTransactions(side);
-
+  console.log("data", data);
   if (data) {
     transactions.value =
       data?.map((item) => {
@@ -63,9 +63,8 @@ async function handleDisplayTransactions(side: Side) {
           roi: (((item.closing_price - item.cost) / item.cost) * 100).toFixed(
             2
           ),
-          gain_loss: (item.closing_price - item.cost).toFixed(2),
+          gain_loss: ((item.closing_price - item.cost) * item.share).toFixed(2),
           value: (item.closing_price * item.share).toFixed(2),
-          avg_cost: (item.cost / item.share).toFixed(2),
         };
       }) ?? [];
 
@@ -126,13 +125,13 @@ onMounted(async () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Date</TableHead>
+                <TableHead class="py-4">Date</TableHead>
                 <TableHead>Ticker</TableHead>
                 <TableHead class="text-right">ROI</TableHead>
-                <TableHead class="text-right">Gain/Loss</TableHead>
+                <TableHead class="text-right">Gain / Loss</TableHead>
                 <TableHead class="text-right">Share</TableHead>
-                <TableHead class="text-right">Avg Cost</TableHead>
-                <TableHead class="text-right">Total Value</TableHead>
+                <TableHead class="text-right">Cost</TableHead>
+                <TableHead class="text-right">Closing Price</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -141,7 +140,7 @@ onMounted(async () => {
                 :key="transaction.id"
               >
                 <TableCell>{{ transaction.date }}</TableCell>
-                <TableCell class="font-medium">{{
+                <TableCell class="font-medium py-4">{{
                   transaction.symbol
                 }}</TableCell>
                 <TableCell
@@ -164,11 +163,11 @@ onMounted(async () => {
                   transaction.share
                 }}</TableCell>
                 <TableCell class="text-right"
-                  >{{ transaction.avg_cost }}
+                  >{{ transaction.cost }}
                 </TableCell>
-                <TableCell class="text-right">{{
-                  transaction.value
-                }}</TableCell>
+                <TableCell class="text-right"
+                  >{{ transaction.closing_price }}
+                </TableCell>
               </TableRow>
             </TableBody>
           </Table>
@@ -205,7 +204,7 @@ onMounted(async () => {
                 <TableHead class="text-right">ROI</TableHead>
                 <TableHead class="text-right">Gain/Loss</TableHead>
                 <TableHead class="text-right">Share</TableHead>
-                <TableHead class="text-right">Avg Cost</TableHead>
+                <TableHead class="text-right">Total Cost</TableHead>
                 <TableHead class="text-right">Total Value</TableHead>
               </TableRow>
             </TableHeader>
@@ -238,7 +237,7 @@ onMounted(async () => {
                   transaction.share
                 }}</TableCell>
                 <TableCell class="text-right"
-                  >{{ transaction.avg_cost }}
+                  >{{ transaction.totalCost }}
                 </TableCell>
                 <TableCell class="text-right">{{
                   transaction.value

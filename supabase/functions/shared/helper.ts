@@ -35,7 +35,7 @@ export const jsonResponse = ({
   const response = error ? {
     data: null,
     error: {
-      msg: errorMap[error.code] || "unknown error",
+      msg: errorMap[error.code] || error.msg || "unknown error",
     }
   } : {
     data,

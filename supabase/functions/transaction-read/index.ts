@@ -24,11 +24,12 @@ Deno.serve(async (req) => {
   console.log("reqBody", reqBody);
 
   const { userId, side } = reqBody;
-
-  const payload = { user_id: userId, side }
-  console.log("payload", payload);
-
-  const { data, error } = await supabaseClient.from('transactions').select('id, symbol, cost, closing_price, share, side, currency, exchange_rate, date, created_at').eq('user_id', userId).eq('side', side)
+  const { data, error } = await supabaseClient
+    .from('transactions')
+    .select('id, symbol, cost, closing_price, share, side, currency, exchange_rate, date, created_at')
+    .eq('user_id', userId)
+    .eq('side', side)
+    .order('date', { ascending: false })
 
   console.log("read result - data:", data);
   console.log("read result - error:", error);
