@@ -1,0 +1,1 @@
+alter table transactions rename column cost to price;

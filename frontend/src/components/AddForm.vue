@@ -42,7 +42,7 @@ import { toDate } from "reka-ui/date";
 import { callEdgeFunction, debounce } from "@/lib/helper";
 import { supabase } from "@/lib/supabase";
 import { DateTime } from "luxon";
-import { fetchClosingPrice, fetchExchangeRate } from "@/api/stock";
+import { fetchExchangeRate } from "@/api/stock";
 import { toast } from "vue-sonner";
 
 const df = new DateFormatter("en-US", {
@@ -58,10 +58,9 @@ const formSchema = z.object({
   share: z
     .number({ required_error: "Share is required." })
     .min(1, "Share must be at least 1"),
-  cost: z
-    .number({ required_error: "Cost is required." })
-    .min(1, "Cost must be at least 1"),
-  closingPrice: z.number({ required_error: "Closing price is required." }),
+  price: z
+    .number({ required_error: "Price is required." })
+    .min(1, "Price must be at least 1"),
   exchangeRate: z.number().optional(),
   fee: z.number().optional(),
   tax: z.number().optional(),
@@ -83,8 +82,7 @@ const {
     date: "",
     symbol: "",
     share: undefined,
-    cost: undefined,
-    closingPrice: -1,
+    price: undefined,
     exchangeRate: undefined,
     fee: undefined,
     tax: undefined,
@@ -197,7 +195,7 @@ const onSubmit = handleSubmit(async (values) => {
   const { data, error } = await callEdgeFunction<{
     symbol: string;
     share: number;
-    cost: number;
+    price: number;
   }>({
     name: "transaction-create",
     body: {
@@ -217,7 +215,7 @@ const onSubmit = handleSubmit(async (values) => {
   if (data) {
     resetForm();
     toast.success("Transaction has been created", {
-      description: `${values.side.charAt(0).toUpperCase() + values.side.slice(1)} ${data.symbol.toUpperCase()} @ $${data.cost} × ${
+      description: `${values.side.charAt(0).toUpperCase() + values.side.slice(1)} ${data.symbol.toUpperCase()} @ $${data.price} × ${
         data.share
       } shares`,
     });
@@ -280,15 +278,6 @@ async function validateSymbolAndFetchPrice(symbol: string) {
       status: "valid",
       message: `✓ Valid symbol`,
     };
-
-    if (!values.date) return;
-
-    await handleFetchClosingPrice({
-      status: symbolValidation.value.status,
-      symbol: values.symbol,
-      market: values.market,
-      date: values.date,
-    });
   } catch (error) {
     console.error("Symbol validation error:", error);
     symbolValidation.value = {
@@ -323,7 +312,10 @@ async function handleFetchExchangeRate(date: string) {
     const res = await fetchExchangeRate(date);
 
     if (res.statusCode === 200 && res.data.h[0] > 0 && res.data.l[0] > 0) {
-      setFieldValue("exchangeRate", (res.data.h[0] + res.data.l[0]) / 2);
+      setFieldValue(
+        "exchangeRate",
+        Number(((res.data.h[0] + res.data.l[0]) / 2).toFixed(2))
+      );
     } else {
       setFieldError("exchangeRate", "Failed to fetch exchange rate");
     }
@@ -335,79 +327,14 @@ async function handleFetchExchangeRate(date: string) {
   }
 }
 
-// Closing price fetching
-const isLoadingClosingPrice = ref(false);
-
-async function handleFetchClosingPrice({
-  status,
-  symbol,
-  date,
-  market,
-}: {
-  status: "valid" | "idle" | "invalid";
-  date: string | undefined;
-  symbol: string | undefined;
-  market: string | undefined;
-}) {
-  if (status !== "valid" || !symbol) {
-    setFieldError("symbol", "Invalid symbol");
-    return;
-  }
-  if (!market) {
-    setFieldError("market", "Market is required");
-    return;
-  }
-  if (!date) {
-    setFieldError("date", "Date is required");
-    return;
-  }
-
-  isLoadingClosingPrice.value = true;
-
-  try {
-    const res = await fetchClosingPrice({
-      symbol: market === "US" ? symbol : `${symbol}.TW`,
-      date,
-    });
-
-    if (res.quotes.length > 0) {
-      setFieldValue(
-        "closingPrice",
-        Math.round(res.quotes[0].close * 100) / 100
-      );
-    } else {
-      setFieldError("closingPrice", "Failed to fetch closing price");
-    }
-  } catch (error) {
-    console.error("Closing price fetch error:", error);
-    setFieldError("closingPrice", "Failed to fetch closing price");
-  } finally {
-    isLoadingClosingPrice.value = false;
-  }
-}
-
 async function handleDateChange(dateValue: DateValue | undefined) {
   if (!dateValue) return setFieldValue("date", undefined);
 
   setFieldValue("date", dateValue.toString());
   handleFetchExchangeRate(dateValue.toString());
-
-  if (
-    symbolValidation.value.status === "valid" &&
-    values.symbol &&
-    values.market
-  ) {
-    handleFetchClosingPrice({
-      status: symbolValidation.value.status,
-      symbol: values.symbol,
-      market: values.market,
-      date: dateValue.toString(),
-    });
-  }
 }
 
 async function handleMarketChange() {
-  setFieldValue("closingPrice", -1);
   if (values.symbol) {
     resetForm({
       values: {
@@ -539,7 +466,7 @@ async function handleMarketChange() {
       </FormItem>
     </FormField>
 
-    <FormField name="cost" v-slot="{ componentField }">
+    <FormField name="price" v-slot="{ componentField }">
       <FormItem>
         <FormLabel>
           <div>
@@ -560,43 +487,6 @@ async function handleMarketChange() {
           <div>
             Date
             <span class="text-xs text-red-500">*</span>
-          </div>
-          <div class="ml-auto text-xs">
-            <div v-if="errors.closingPrice">
-              <span class="text-red-500 mr-1">{{ errors.closingPrice }}</span>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                @click="
-                  handleFetchClosingPrice({
-                    status: symbolValidation.status,
-                    symbol: values.symbol,
-                    market: values.market,
-                    date: values.date,
-                  })
-                "
-                :disabled="isLoadingExchangeRate"
-                class="h-6 px-2 text-xs [&_svg:not([class*='size-'])]:size-3"
-              >
-                <RefreshCw /> Refresh
-              </Button>
-            </div>
-            <div
-              v-else-if="values.closingPrice === -1 && isLoadingClosingPrice"
-            >
-              <span class="text-neutral-500">Fetching closing price...</span>
-            </div>
-            <div
-              v-else-if="values.closingPrice !== -1"
-              :class="isLoadingClosingPrice ? 'animate-pulse' : ''"
-            >
-              <span class="text-neutral-500">Closing Price: </span>
-              <span
-                class="bg-neutral-600 text-neutral-100 ml-1 px-2 py-0.5 rounded-full"
-                >{{ values.closingPrice }}</span
-              >
-            </div>
           </div>
         </FormLabel>
         <Popover>
@@ -736,9 +626,7 @@ async function handleMarketChange() {
       <Button
         type="submit"
         class="bg-indigo-600 hover:bg-indigo-500"
-        :disabled="
-          isLoadingClosingPrice || isLoadingExchangeRate || isValidatingSymbol
-        "
+        :disabled="isLoadingExchangeRate || isValidatingSymbol"
       >
         Submit
       </Button>

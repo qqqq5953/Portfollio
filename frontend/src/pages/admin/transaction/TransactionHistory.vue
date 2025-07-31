@@ -12,21 +12,21 @@ import {
 import { Plus, Loader2 } from "lucide-vue-next";
 import { callEdgeFunction } from "@/lib/helper";
 import { supabase } from "@/lib/supabase";
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { toast } from "vue-sonner";
 
 type Side = "buy" | "sell";
 type Transaction = {
   id: string;
   symbol: string;
-  cost: number;
-  closing_price: number;
+  price: number;
   share: number;
   side: Side;
   currency: "USD" | "TWD";
   exchange_rate: number;
   date: string;
   created_at: string;
+  costBasis: number;
   gainAmount: number;
   gainPercentage: number;
   breakdown: {
@@ -37,10 +37,13 @@ type Transaction = {
 };
 
 const transactions = ref<Transaction[]>([]);
-const totalCost = ref(0);
 const isTransactionLoading = ref(false);
 const selectedSide = ref<Side>("buy");
-
+const totalGain = ref(0);
+const totalCost = ref(0);
+const totalGainPercentage = computed(() => {
+  return (totalGain.value / totalCost.value) * 100;
+});
 async function fetchTransactions(side: Side) {
   const {
     data: { session },
@@ -64,7 +67,11 @@ async function handleDisplayTransactions(side: Side) {
   if (data) {
     transactions.value = data;
     totalCost.value = transactions.value.reduce(
-      (acc, item) => acc + item.cost,
+      (acc, item) => acc + item.price,
+      0
+    );
+    totalGain.value = transactions.value.reduce(
+      (acc, item) => acc + item.gainAmount,
       0
     );
   }
@@ -122,11 +129,8 @@ onMounted(async () => {
               <TableRow>
                 <TableHead class="py-4">Date</TableHead>
                 <TableHead>Ticker</TableHead>
-                <TableHead class="text-right">ROI</TableHead>
-                <TableHead class="text-right">Gain / Loss</TableHead>
                 <TableHead class="text-right">Share</TableHead>
                 <TableHead class="text-right">Cost</TableHead>
-                <TableHead class="text-right">Closing Price</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -138,30 +142,11 @@ onMounted(async () => {
                 <TableCell class="font-medium">{{
                   transaction.symbol
                 }}</TableCell>
-                <TableCell
-                  :class="{
-                    'text-red-500': transaction.gainPercentage < 0,
-                    'text-green-500': transaction.gainPercentage > 0,
-                  }"
-                  class="text-right"
-                  >{{ transaction.gainPercentage.toFixed(2) }} %</TableCell
-                >
-                <TableCell
-                  :class="{
-                    'text-red-500': transaction.gainAmount < 0,
-                    'text-green-500': transaction.gainAmount > 0,
-                  }"
-                  class="text-right"
-                  >{{ transaction.gainAmount.toFixed(2) }}
-                </TableCell>
                 <TableCell class="text-right">{{
                   transaction.share
                 }}</TableCell>
                 <TableCell class="text-right"
-                  >{{ transaction.cost }}
-                </TableCell>
-                <TableCell class="text-right"
-                  >{{ transaction.closing_price }}
+                  >{{ transaction.price }}
                 </TableCell>
               </TableRow>
             </TableBody>
@@ -172,21 +157,32 @@ onMounted(async () => {
             <Card>
               <CardContent>
                 <div class="text-sm text-muted-foreground text-center">
-                  Gain / Loss
+                  Total {{ totalGain >= 0 ? "Gain" : "Loss" }} (USD)
                 </div>
                 <div class="flex items-end justify-center gap-2">
-                  <span class="text-2xl font-bold">$100</span>
-                  <span class="text-sm text-muted-foreground mb-1 font-medium"
-                    >USD</span
-                  >
+                <span 
+                  class="text-2xl font-bold" 
+                  :class="{
+                    'text-green-500': totalGain > 0,
+                    'text-red-500': totalGain < 0,
+                    'text-neutral-600': totalGain === 0,
+                  }"
+                >
+                  {{ totalGain >= 0 ? "+" : "-" }} ${{ Math.abs(totalGain) }}
+                </span>
                 </div>
               </CardContent>
             </Card>
             <Card>
-              <CardContent>
-                <div class="text-sm text-muted-foreground text-center">ROI</div>
-                <div class="flex items-end justify-center gap-2">
-                  <span class="text-2xl font-bold">20%</span>
+              <CardContent class="h-full grid place-items-center">
+                <div>
+                  <div class="text-sm text-muted-foreground text-center">ROI</div>
+                    <div class="flex items-end justify-center gap-2">
+                      <span class="text-2xl font-bold" :class="{
+                        'text-red-500': totalGainPercentage < 0,
+                        'text-green-500': totalGainPercentage > 0,
+                      }">{{ totalGainPercentage.toFixed(2) }} %</span>
+                    </div>
                 </div>
               </CardContent>
             </Card>
@@ -217,7 +213,7 @@ onMounted(async () => {
                     'text-green-500': transaction.gainPercentage > 0,
                   }"
                   class="text-right"
-                  >{{ transaction.gainPercentage.toFixed(2) }} %</TableCell
+                  >{{ transaction.gainPercentage?.toFixed(2) }} %</TableCell
                 >
                 <TableCell
                   :class="{
@@ -225,14 +221,14 @@ onMounted(async () => {
                     'text-green-500': transaction.gainAmount > 0,
                   }"
                   class="text-right"
-                  >{{ transaction.gainAmount.toFixed(2) }}
+                  >{{ transaction.gainAmount?.toFixed(2) }}
                 </TableCell>
                 <TableCell class="text-right">{{
                   transaction.share
                 }}</TableCell>
-                <TableCell class="text-right"
-                  >{{ transaction.cost }}
-                </TableCell>
+                <TableCell class="text-right">{{
+                  transaction.price
+                }}</TableCell>
               </TableRow>
             </TableBody>
           </Table>

@@ -27,7 +27,7 @@ Deno.serve(async (req) => {
     userId,
     symbol,
     share,
-    cost,
+    price,
     side,
     market,
     closingPrice,
@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
     side,
     symbol,
     share,
-    cost,
+    price,
     currency,
     closing_price: closingPrice,
     exchange_rate: exchangeRate,
@@ -81,5 +81,5 @@ Deno.serve(async (req) => {
   console.log("Insert result - data:", data);
   console.log("Insert result - error:", error);
 
-  return jsonResponse({ data: { symbol, share, cost }, error });
+  return jsonResponse({ data: { symbol, share, price }, error });
 })

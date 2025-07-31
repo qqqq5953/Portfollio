@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
   const { userId } = reqBody;
   const { data, error } = await supabaseClient
     .from('transactions')
-    .select('id, symbol, cost, closing_price, share, side, currency, exchange_rate, date, created_at')
+    .select('id, symbol, price, share, side, currency, exchange_rate, date, created_at')
     .eq('user_id', userId)
     .order('date', { ascending: false })
 
@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
     return {
       type: item.side,
       quantity: item.share,
-      price: item.cost,
+      price: item.price,
       date: item.date,
     };
   }) ?? [];
@@ -62,8 +62,7 @@ Deno.serve(async (req) => {
 type InputTrade = {
     id: string;
     symbol: string;
-    cost: number;
-    closing_price: number;
+    price: number;
     share: number;
     side: 'buy' | 'sell';
     currency: "USD" | "TWD";
@@ -160,7 +159,7 @@ type InputTrade = {
     const simplifiedTrades: Trade[] = inputTrades.map(t => ({
       type: t.side,
       quantity: t.share,
-      price: t.cost,
+      price: t.price,
       date: t.date,
     }));
   
@@ -174,13 +173,12 @@ type InputTrade = {
         r =>
           r.sellDate === sell.date &&
           r.quantity === sell.share &&
-          r.sellPrice === sell.cost
+          r.sellPrice === sell.price
       );
   
       if (matched) {
         enrichedSells.push({
           ...sell,
-          sellPrice: matched.sellPrice,
           costBasis: matched.costBasis,
           gainAmount: matched.gainAmount,
           gainPercentage: matched.gainPercentage,
