@@ -23,16 +23,25 @@ Deno.serve(async (req) => {
   const reqBody = await req.json();
   console.log("reqBody", reqBody);
 
-  const { userId, side } = reqBody;
+  const { userId } = reqBody;
   const { data, error } = await supabaseClient
     .from('transactions')
     .select('id, symbol, cost, closing_price, share, side, currency, exchange_rate, date, created_at')
     .eq('user_id', userId)
-    .eq('side', side)
+    .eq('side', 'buy')
     .order('date', { ascending: false })
 
   console.log("read result - data:", data);
   console.log("read result - error:", error);
 
-  return jsonResponse({ data, error });
-})
+  return jsonResponse({ 
+    data: data?.map((item) => {
+        return {
+        ...item,
+        gainAmount: ((item.closing_price - item.cost) * item.share),
+        gainPercentage: ((item.closing_price - item.cost) / item.cost) * 100,
+      };
+    }) ?? [],
+    error,
+  });
+});

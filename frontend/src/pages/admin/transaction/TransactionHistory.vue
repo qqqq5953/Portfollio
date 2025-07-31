@@ -27,9 +27,16 @@ type Transaction = {
   exchange_rate: number;
   date: string;
   created_at: string;
+  gainAmount: number;
+  gainPercentage: number;
+  breakdown: {
+    buyDate: string;
+    quantity: number;
+    buyPrice: number;
+  }[];
 };
 
-const transactions = ref<any[]>([]);
+const transactions = ref<Transaction[]>([]);
 const totalCost = ref(0);
 const isTransactionLoading = ref(false);
 const selectedSide = ref<Side>("buy");
@@ -40,10 +47,9 @@ async function fetchTransactions(side: Side) {
   } = await supabase.auth.getSession();
 
   const { data, error } = await callEdgeFunction<Transaction[]>({
-    name: "transaction-read",
+    name: `transaction-read-${side}`,
     body: {
-      userId: session?.user?.id || "",
-      side,
+      userId: session?.user?.id || ""
     },
   });
 
@@ -56,18 +62,7 @@ async function handleDisplayTransactions(side: Side) {
   const { data } = await fetchTransactions(side);
   console.log("data", data);
   if (data) {
-    transactions.value =
-      data?.map((item) => {
-        return {
-          ...item,
-          roi: (((item.closing_price - item.cost) / item.cost) * 100).toFixed(
-            2
-          ),
-          gain_loss: ((item.closing_price - item.cost) * item.share).toFixed(2),
-          value: (item.closing_price * item.share).toFixed(2),
-        };
-      }) ?? [];
-
+    transactions.value = data;
     totalCost.value = transactions.value.reduce(
       (acc, item) => acc + item.cost,
       0
@@ -139,25 +134,25 @@ onMounted(async () => {
                 v-for="transaction in transactions"
                 :key="transaction.id"
               >
-                <TableCell>{{ transaction.date }}</TableCell>
-                <TableCell class="font-medium py-4">{{
+                <TableCell class="py-4">{{ transaction.date }}</TableCell>
+                <TableCell class="font-medium">{{
                   transaction.symbol
                 }}</TableCell>
                 <TableCell
                   :class="{
-                    'text-red-500': transaction.roi < 0,
-                    'text-green-500': transaction.roi > 0,
+                    'text-red-500': transaction.gainPercentage < 0,
+                    'text-green-500': transaction.gainPercentage > 0,
                   }"
                   class="text-right"
-                  >{{ transaction.roi }} %</TableCell
+                  >{{ transaction.gainPercentage.toFixed(2) }} %</TableCell
                 >
                 <TableCell
                   :class="{
-                    'text-red-500': transaction.gain_loss < 0,
-                    'text-green-500': transaction.gain_loss > 0,
+                    'text-red-500': transaction.gainAmount < 0,
+                    'text-green-500': transaction.gainAmount > 0,
                   }"
                   class="text-right"
-                  >{{ transaction.gain_loss }}
+                  >{{ transaction.gainAmount.toFixed(2) }}
                 </TableCell>
                 <TableCell class="text-right">{{
                   transaction.share
@@ -199,13 +194,12 @@ onMounted(async () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Date</TableHead>
+                <TableHead class="py-4">Date</TableHead>
                 <TableHead>Ticker</TableHead>
                 <TableHead class="text-right">ROI</TableHead>
                 <TableHead class="text-right">Gain/Loss</TableHead>
                 <TableHead class="text-right">Share</TableHead>
-                <TableHead class="text-right">Total Cost</TableHead>
-                <TableHead class="text-right">Total Value</TableHead>
+                <TableHead class="text-right">Sell Price</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -213,35 +207,32 @@ onMounted(async () => {
                 v-for="transaction in transactions"
                 :key="transaction.id"
               >
-                <TableCell>{{ transaction.date }}</TableCell>
-                <TableCell class="font-medium">{{
+                <TableCell class="py-4">{{ transaction.date }}</TableCell>
+                <TableCell class="font-medium py-4">{{
                   transaction.symbol
                 }}</TableCell>
                 <TableCell
                   :class="{
-                    'text-red-500': transaction.roi < 0,
-                    'text-green-500': transaction.roi > 0,
+                    'text-red-500': transaction.gainPercentage < 0,
+                    'text-green-500': transaction.gainPercentage > 0,
                   }"
                   class="text-right"
-                  >{{ transaction.roi }} %</TableCell
+                  >{{ transaction.gainPercentage.toFixed(2) }} %</TableCell
                 >
                 <TableCell
                   :class="{
-                    'text-red-500': transaction.gain_loss < 0,
-                    'text-green-500': transaction.gain_loss > 0,
+                    'text-red-500': transaction.gainAmount < 0,
+                    'text-green-500': transaction.gainAmount > 0,
                   }"
                   class="text-right"
-                  >{{ transaction.gain_loss }}
+                  >{{ transaction.gainAmount.toFixed(2) }}
                 </TableCell>
                 <TableCell class="text-right">{{
                   transaction.share
                 }}</TableCell>
                 <TableCell class="text-right"
-                  >{{ transaction.totalCost }}
+                  >{{ transaction.cost }}
                 </TableCell>
-                <TableCell class="text-right">{{
-                  transaction.value
-                }}</TableCell>
               </TableRow>
             </TableBody>
           </Table>
