@@ -9,7 +9,7 @@ import {
   TableCell,
   TableHead,
 } from "@/components/ui/table";
-import { Plus, Loader2, ArrowDown, ArrowUp } from "lucide-vue-next";
+import { Plus, ArrowDown, ArrowUp } from "lucide-vue-next";
 import { callEdgeFunction } from "@/lib/helper";
 import { supabase } from "@/lib/supabase";
 import { computed, onMounted, ref } from "vue";
@@ -67,7 +67,7 @@ async function handleDisplayTransactions(side: Side) {
   if (data) {
     transactions.value = data;
     totalCost.value = transactions.value.reduce(
-      (acc, item) => acc + item.price,
+      (acc, item) => acc + item.price * item.share,
       0
     );
     totalGain.value = transactions.value.reduce(
@@ -85,8 +85,8 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="space-y-6">
-    <div class="flex justify-end items-center">
+  <div>
+    <div class="flex justify-end items-center sm:hidden mb-6">
       <RouterLink
         to="/admin/transactions/add"
         class="flex items-center gap-2 text-sm text-muted-foreground"
@@ -100,102 +100,133 @@ onMounted(async () => {
         v-model="selectedSide"
         @update:model-value="(side) => handleDisplayTransactions(side as Side)"
       >
-        <TabsList class="w-full md:w-1/2 mx-auto mb-5">
-          <TabsTrigger value="buy">Buy</TabsTrigger>
-          <TabsTrigger value="sell">Sell</TabsTrigger>
+        <TabsList class="w-full sm:w-1/2 mx-auto mb-5 py-6 px-1.5">
+          <TabsTrigger value="buy" class="py-4.5">Buy</TabsTrigger>
+          <TabsTrigger value="sell" class="py-4.5">Sell</TabsTrigger>
         </TabsList>
         <!-- buy tab -->
-        <TabsContent value="buy" class="flex flex-col gap-4">
-          <div v-if="isTransactionLoading">
-            <div class="flex items-center justify-center">
-              <Loader2 class="animate-spin" />
+        <TabsContent value="buy" class="flex flex-col gap-4 ">
+          <div v-if="isTransactionLoading" class="space-y-8">
+            <Card class="w-full sm:w-1/2 mx-auto bg-neutral-100/80 animate-pulse border-none shadow-none">
+              <CardContent>
+                <div class="text-neutral-100">
+                  skeleton
+                </div>
+                <span class="text-neutral-100">skeleton</span>
+              </CardContent>
+            </Card>
+            <div class="space-y-4">
+              <div class="h-10 w-full bg-neutral-50 max-w-xl mx-auto animate-pulse rounded-lg" v-for="_i in 5" />
             </div>
           </div>
-          <Card v-else class="w-full md:w-1/2 mx-auto">
-            <CardContent>
-              <div class="text-sm text-muted-foreground text-center">
-                Total Cost
-              </div>
-              <div class="flex items-end justify-center gap-2">
-                <span class="text-2xl font-bold">${{ totalCost }}</span>
-                <span class="text-sm text-muted-foreground mb-1 font-medium"
-                  >USD</span
+          <div v-else class="flex flex-col gap-4">
+            <Card class="w-full sm:w-1/2 mx-auto">
+              <CardContent>
+                <div class="text-sm text-muted-foreground text-center">
+                  Total Cost (USD)
+                </div>
+                <div class="flex items-end justify-center gap-2">
+                  <div class="text-2xl font-bold">
+                    <span class="mr-0.5">$</span>
+                    <span>{{ totalCost }}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+  
+            <!-- Desktop Table -->
+            <Table class="hidden sm:table sm:max-w-xl sm:mx-auto">
+              <TableHeader>
+                <TableRow>
+                  <TableHead class="text-neutral-500 font-light py-4">Date</TableHead>
+                  <TableHead class="text-neutral-500 font-light">Ticker</TableHead>
+                  <TableHead class="text-right text-neutral-500 font-light">Total Cost</TableHead>
+                  <TableHead class="text-right text-neutral-500 font-light">Share</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow
+                  v-for="transaction in transactions"
+                  :key="transaction.id"
                 >
-              </div>
-            </CardContent>
-          </Card>
-
-          <!-- Desktop Table -->
-          <Table class="hidden md:table">
-            <TableHeader>
-              <TableRow>
-                <TableHead class="py-4">Date</TableHead>
-                <TableHead>Ticker</TableHead>
-                <TableHead class="text-right">Share</TableHead>
-                <TableHead class="text-right">Cost</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow
+                  <TableCell class="py-4 text-gray-500">{{ transaction.date }}</TableCell>
+                  <TableCell class="font-medium">
+                    <span class="bg-indigo-100 px-2 py-1 rounded-full text-xs">
+                      {{transaction.symbol}}
+                    </span>
+                  </TableCell>
+                  <TableCell class="text-right">
+                    <span class="mr-0.5">$</span>
+                    <span>{{ transaction.price * transaction.share }}</span>
+                  </TableCell>
+                  <TableCell class="text-right">{{
+                    transaction.share
+                  }}</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+  
+            <!-- Mobile Cards -->
+            <div class="block sm:hidden space-y-4">
+              <Card 
                 v-for="transaction in transactions"
                 :key="transaction.id"
+                class="p-4"
               >
-                <TableCell class="py-4">{{ transaction.date }}</TableCell>
-                <TableCell class="font-medium">{{
-                  transaction.symbol
-                }}</TableCell>
-                <TableCell class="text-right">{{
-                  transaction.share
-                }}</TableCell>
-                <TableCell class="text-right"
-                  >{{ transaction.price }}
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-
-          <!-- Mobile Cards -->
-          <div class="block md:hidden space-y-4">
-            <Card 
-              v-for="transaction in transactions"
-              :key="transaction.id"
-              class="p-4"
-            >
-              <div class="space-y-3">
-                <div class="flex justify-between items-start">
-                  <div>
-                    <div class="font-medium text-lg">{{ transaction.symbol }}</div>
-                    <div class="text-sm text-muted-foreground">{{ transaction.date }}</div>
-                  </div>
-                  <div class="text-right">
-                    <div class="font-semibold">${{ transaction.price }}</div>
-                    <div class="text-sm text-muted-foreground">Cost</div>
+                <div class="space-y-3">
+                  <div class="flex justify-between items-center">
+                    <div class="flex flex-col gap-1">
+                      <span class="text-lg font-bold text-indigo-600">
+                        {{ transaction.symbol }}
+                      </span>
+                      <span class="text-sm text-gray-400">{{ transaction.date }}</span>
+                    </div>
+                    <div class="flex flex-col items-center gap-1">
+                      <div class="flex items-center gap-1">
+                        <span class="">${{ transaction.price }}</span>
+                        <span>x</span>
+                        <span>{{ transaction.share }}</span>
+                      </div>
+                      <span class="text-sm text-gray-500">Total: ${{ transaction.price * transaction.share }}</span>
+                    </div>
                   </div>
                 </div>
-                <div class="pt-2 border-t">
-                  <div class="flex justify-between">
-                    <span class="text-sm text-muted-foreground">Shares</span>
-                    <span class="font-medium">{{ transaction.share }}</span>
-                  </div>
-                </div>
-              </div>
-            </Card>
+              </Card>
+            </div>
           </div>
         </TabsContent>
 
         <!-- sell tab -->
         <TabsContent value="sell">
-          <div v-if="isTransactionLoading">
-            <div class="flex items-center justify-center">
-              <Loader2 class="animate-spin" />
+          <div v-if="isTransactionLoading" class="space-y-8">
+            <div class="flex w-full gap-4 sm:max-w-lg sm:mx-auto">
+              <Card class="w-full sm:w-1/2 mx-auto bg-neutral-100/80 animate-pulse border-none shadow-none">
+                <CardContent>
+                  <div class="text-neutral-100">
+                    skeleton
+                  </div>
+                  <span class="text-neutral-100">skeleton</span>
+                </CardContent>
+              </Card>
+              <Card class="w-full sm:w-1/2 mx-auto bg-neutral-100/80 animate-pulse border-none shadow-none">
+                <CardContent>
+                  <div class="text-neutral-100">
+                    skeleton
+                  </div>
+                  <span class="text-neutral-100">skeleton</span>
+                </CardContent>
+              </Card>
+            </div>
+            <div class="space-y-4">
+              <div class="h-10 w-full bg-neutral-50 max-w-4xl mx-auto animate-pulse rounded-lg" v-for="_i in 5" />
             </div>
           </div>
           <div v-else class="flex flex-col gap-4">
-            <div class="grid grid-cols-2 gap-4">
-              <Card>
+            <div class="flex w-full gap-4 sm:max-w-lg sm:mx-auto">
+              <Card class="w-1/2">
                 <CardContent>
                   <div class="text-sm text-muted-foreground text-center">
-                    Total {{ totalGain >= 0 ? "Gain" : "Loss" }} (USD)
+                    Total Profit (USD)
                   </div>
                   <div class="flex items-end justify-center gap-2">
                   <span 
@@ -211,7 +242,7 @@ onMounted(async () => {
                   </div>
                 </CardContent>
               </Card>
-              <Card>
+              <Card class="w-1/2">
                 <CardContent class="h-full grid place-items-center">
                   <div>
                     <div class="text-sm text-muted-foreground text-center">ROI</div>
@@ -227,16 +258,16 @@ onMounted(async () => {
             </div>
   
             <!-- Desktop Table -->
-            <Table class="hidden md:table">
+            <Table class="hidden sm:table sm:max-w-4xl sm:mx-auto">
               <TableHeader>
                 <TableRow>
-                  <TableHead class="p-4">Date</TableHead>
-                  <TableHead>Ticker</TableHead>
-                  <TableHead class="text-right">ROI</TableHead>
-                  <TableHead class="text-right">Gain/Loss</TableHead>
-                  <TableHead class="text-right">Share</TableHead>
-                  <TableHead class="text-right text-wrap">Settlement Amount</TableHead>
-                  <TableHead class="p-4 text-right">Cost Basis</TableHead>
+                  <TableHead class="text-neutral-500 font-light p-4">Date</TableHead>
+                  <TableHead class="text-neutral-500 font-light">Ticker</TableHead>
+                  <TableHead class="text-right text-neutral-500 font-light">ROI</TableHead>
+                  <TableHead class="text-right text-neutral-500 font-light">Profit</TableHead>
+                  <TableHead class="text-right text-neutral-500 font-light">Settlement Amount</TableHead>
+                  <TableHead class="text-right text-neutral-500 font-light">Cost Basis</TableHead>
+                  <TableHead class="text-right text-neutral-500 font-light p-4 ">Share</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -244,7 +275,7 @@ onMounted(async () => {
                   v-for="transaction in transactions"
                   :key="transaction.id"
                 >
-                  <TableCell class="p-4">{{ transaction.date }}</TableCell>
+                  <TableCell class="p-4 text-gray-500">{{ transaction.date }}</TableCell>
                   <TableCell class="font-medium py-4">
                     <span class="bg-indigo-100 px-2 py-1 rounded-full text-xs">
                       {{transaction.symbol}}
@@ -264,33 +295,39 @@ onMounted(async () => {
                       'text-green-500': transaction.gainAmount > 0,
                     }"
                     class="text-right"
-                    >{{ transaction.gainAmount?.toFixed(2) }}
+                    >
+                    <span v-if="transaction.gainAmount >= 0">+</span>
+                    <span v-else>-</span>
+                    <span class="mx-0.5">$</span>
+                    <span>{{ Math.abs(transaction.gainAmount).toFixed(2) }}</span>
                   </TableCell>
-                  <TableCell class="text-right">{{
-                    transaction.share
-                  }}</TableCell>
-                  <TableCell class="text-right">{{
-                    transaction.price * transaction.share
-                  }}</TableCell>
+                  <TableCell class="text-right">
+                    <span class="mr-0.5">$</span>
+                    <span>{{ (transaction.price * transaction.share).toFixed(2) }}</span>
+                  </TableCell>
+                  <TableCell class="text-right">
+                    <span class="mr-0.5">$</span>
+                    <span>{{ transaction.costBasis.toFixed(2) }}</span>
+                  </TableCell>
                   <TableCell class="text-right p-4">{{
-                    transaction.costBasis
+                    transaction.share
                   }}</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
   
             <!-- Mobile Cards -->
-            <div class="block md:hidden space-y-4">
+            <div class="block sm:hidden space-y-12">
               <Card 
                 v-for="transaction in transactions"
                 :key="transaction.id"
-                class="p-4 shadow-none border-none"
+                class="p-0 shadow-none border-none"
               >
                 <div class="space-y-3">
                   <div class="flex justify-between items-end">
                     <div>
                       <div class="text-xs text-neutral-600 mb-2">{{ transaction.date }}</div>
-                      <span class="bg-indigo-500 text-neutral-100 px-2 py-1 rounded-full text-xs font-medium">
+                      <span class="bg-indigo-500 text-neutral-100 px-2 py-1 rounded-md text-sm font-medium">
                         {{ transaction.symbol }}
                       </span>
                     </div>
@@ -307,12 +344,11 @@ onMounted(async () => {
                     </div>
                   </div>
                   
-                  <div class="flex justify-between items-center border-t pt-3">
-                    <div class="text-sm text-muted-foreground">
+                  <div class="flex justify-between items-center border-t pt-3 px-2 text-sm">
+                    <div class="text-neutral-500">
                       {{ transaction.gainAmount >= 0 ? "Gain" : "Loss" }}
                     </div>
                     <div 
-                      class="text-sm"
                       :class="{
                         'text-rose-600': transaction.gainAmount < 0,
                         'text-green-600': transaction.gainAmount > 0,
@@ -324,22 +360,26 @@ onMounted(async () => {
                       </span>
                     </div>
                   </div>
-
-                  <div class="flex justify-between items-center border-t pt-3">
-                      <div class="text-sm text-muted-foreground">Shares</div>
-                      <div class=" text-sm">{{ transaction.share }}</div>
-                  </div>
                   
-                  <div class="flex justify-between items-center border-t pt-3">
-                    <div class="text-sm text-muted-foreground">Settlement</div>
-                      <div class=" text-sm">
-                        ${{ (transaction.price * transaction.share).toFixed(2) }}
-                      </div>
+                  <div class="flex justify-between items-center border-t pt-3 px-2 text-sm">
+                    <div class="text-neutral-500">Settlement</div>
+                    <div>
+                      <span class="mr-0.5">$</span>
+                      <span>{{ (transaction.price * transaction.share).toFixed(2) }}</span>
+                    </div>
                   </div>
   
-                  <div class="flex justify-between items-center border-t pt-3">
-                    <div class="text-sm text-muted-foreground">Cost Basis</div>
-                    <div class=" text-sm">${{ transaction.costBasis.toFixed(2) }}</div>
+                  <div class="flex justify-between items-center border-t pt-3 px-2 text-sm">
+                    <div class="text-neutral-500">Cost Basis</div>
+                    <div>
+                      <span class="mr-0.5">$</span>
+                      <span>{{ transaction.costBasis.toFixed(2) }}</span>
+                    </div>
+                  </div>
+
+                  <div class="flex justify-between items-center border-t pt-3 px-2 text-sm">
+                    <div class="text-neutral-500">Shares</div>
+                    <div>{{ transaction.share }}</div>
                   </div>
                 </div>
               </Card>
