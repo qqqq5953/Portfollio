@@ -116,7 +116,7 @@ onMounted(async () => {
               </CardContent>
             </Card>
             <div class="space-y-4">
-              <div class="h-10 w-full bg-neutral-50 max-w-xl mx-auto animate-pulse rounded-lg" v-for="_i in 5" />
+              <div class="h-10 w-full bg-neutral-50 max-w-xl mx-auto animate-pulse rounded-xl" v-for="_i in 5" />
             </div>
           </div>
           <div v-else class="flex flex-col gap-4">
@@ -218,7 +218,7 @@ onMounted(async () => {
               </Card>
             </div>
             <div class="space-y-4">
-              <div class="h-10 w-full bg-neutral-50 max-w-4xl mx-auto animate-pulse rounded-lg" v-for="_i in 5" />
+              <div class="h-10 w-full bg-neutral-50 max-w-4xl mx-auto animate-pulse rounded-xl" v-for="_i in 5" />
             </div>
           </div>
           <div v-else class="flex flex-col gap-4">
@@ -233,7 +233,7 @@ onMounted(async () => {
                     class="text-2xl font-bold" 
                     :class="{
                       'text-green-500': totalGain > 0,
-                      'text-red-500': totalGain < 0,
+                      'text-rose-600': totalGain < 0,
                       'text-neutral-600': totalGain === 0,
                     }"
                   >
@@ -248,7 +248,7 @@ onMounted(async () => {
                     <div class="text-sm text-muted-foreground text-center">ROI</div>
                       <div class="flex items-end justify-center gap-2">
                         <span class="text-2xl font-bold" :class="{
-                          'text-red-500': totalGainPercentage < 0,
+                          'text-rose-600': totalGainPercentage < 0,
                           'text-green-500': totalGainPercentage > 0,
                         }">{{ totalGainPercentage.toFixed(2) }} %</span>
                       </div>
@@ -283,7 +283,7 @@ onMounted(async () => {
                   </TableCell>
                   <TableCell
                     :class="{
-                      'text-red-500': transaction.gainPercentage < 0,
+                      'text-rose-600': transaction.gainPercentage < 0,
                       'text-green-500': transaction.gainPercentage > 0,
                     }"
                     class="text-right"
@@ -291,7 +291,7 @@ onMounted(async () => {
                   >
                   <TableCell
                     :class="{
-                      'text-red-500': transaction.gainAmount < 0,
+                      'text-rose-600': transaction.gainAmount < 0,
                       'text-green-500': transaction.gainAmount > 0,
                     }"
                     class="text-right"
