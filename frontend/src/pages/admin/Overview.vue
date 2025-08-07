@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -8,9 +8,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, TrendingUp } from "lucide-vue-next";
+import { Loader2 } from "lucide-vue-next";
 import PieChart from "@/components/PieChart.vue";
-import { onMounted, ref } from "vue";
+import { onMounted, ref, computed } from "vue";
 import { callEdgeFunction } from "@/lib/helper";
 import { supabase } from "@/lib/supabase";
 
@@ -35,6 +35,23 @@ const totalProfitPercentage = ref(0);
 const totalProfit = ref(0);
 const totalValue = ref(0);
 const isLoading = ref(true);
+
+const pieChartData = computed(() => {
+  if (unrealizedStocks.value.length === 0) return [];
+  return unrealizedStocks.value.map(stock => {
+    const marketValue = currentPrices.value[stock.symbol] * stock.remaingShare;
+    return {
+      value: Number(marketValue.toFixed(2)),
+      name: stock.symbol,
+      symbol: stock.symbol,
+      shares: stock.remaingShare,
+      cost: stock.cost,
+      profit: stock.profit,
+      profitPercentage: stock.profitPercentage,
+      currentPrice: currentPrices.value[stock.symbol]
+    };
+  });
+});
 
 async function handleDisplayTransactions() {
   const {
@@ -78,7 +95,7 @@ onMounted(async () => {
 <template>
   <div class="space-y-6">
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <Card>
+      <Card class="border-none shadow-xs">
         <CardContent>
           <div class="text-sm text-muted-foreground text-center">Profit %</div>
           <div v-if="isLoading" class="flex justify-center items-center h-7 mt-1">
@@ -90,7 +107,10 @@ onMounted(async () => {
             'text-red-500': totalProfitPercentage < 0,
             'text-neutral-600': totalProfitPercentage === 0
           }"
-          >{{ totalProfitPercentage >= 0 ? '+' : '-' }} {{ Math.abs(totalProfitPercentage) }}%</div>
+          >
+          <span class="mr-0.5">{{ totalProfitPercentage >= 0 ? '+' : '-' }}</span>
+          <span>{{ Math.abs(totalProfitPercentage) }}%</span>
+          </div>
         </CardContent>
       </Card>
       <Card>
@@ -108,7 +128,8 @@ onMounted(async () => {
             'text-neutral-600': totalProfit === 0
           }"
           >
-          {{ totalProfit >= 0 ? '+' : '-' }} ${{ Math.abs(totalProfit) }}
+          <span class="mr-0.5">{{ totalProfit >= 0 ? '+' : '-' }}</span>
+          <span>{{ Math.abs(totalProfit) }}</span>
           </div>
         </CardContent>
       </Card>
@@ -127,18 +148,13 @@ onMounted(async () => {
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <Card class="flex flex-col">
         <CardContent>
-          <PieChart />
+          <PieChart :chartData="pieChartData" :isLoading="isLoading" />
         </CardContent>
-        <CardFooter class="flex flex-col gap-2">
-          <div class="flex items-center gap-2 leading-none font-medium">
-            Trending up by 5.2% this month <TrendingUp class="h-4 w-4" />
-          </div>
-          <div class="text-muted-foreground leading-none">
-            Showing total visitors for the last 6 months
-          </div>
-        </CardFooter>
       </Card>
       <Card>
+        <CardHeader class="px-6">
+          <CardTitle class="font-medium text-neutral-600">Unrealized Stocks</CardTitle>
+        </CardHeader>
         <CardContent>
           <Table class="hidden sm:table sm:max-w-4xl sm:mx-auto">
             <TableHeader>
@@ -175,8 +191,12 @@ onMounted(async () => {
                       'text-green-500': transaction.profitPercentage > 0,
                     }"
                     class="text-right"
-                    >{{ transaction.profitPercentage?.toFixed(2) }} %</TableCell
                   >
+                    <div class="space-x-0.5">
+                      <span>{{ transaction.profitPercentage >= 0 ? '+' : '-' }}</span>
+                      <span>{{ Math.abs(transaction.profitPercentage).toFixed(2) }} %</span>
+                    </div>  
+                  </TableCell>
                   <TableCell
                     :class="{
                       'text-rose-600': transaction.profit < 0,
@@ -184,17 +204,15 @@ onMounted(async () => {
                     }"
                     class="text-right"
                     >
-                    <span v-if="transaction.profit >= 0">+</span>
-                    <span v-else>-</span>
-                    <span class="mx-0.5">$</span>
-                    <span>{{ Math.abs(transaction.profit).toFixed(2) }}</span>
+                    <div class="space-x-0.5">
+                      <span>{{ transaction.profit >= 0 ? '+' : '-' }}</span>
+                      <span>{{ Math.abs(transaction.profit).toFixed(2) }}</span>
+                    </div>
                   </TableCell>
                   <TableCell class="text-right">
-                    <span class="mr-0.5">$</span>
                     <span>{{ (currentPrices[transaction.symbol] * transaction.remaingShare).toFixed(2) }}</span>
                   </TableCell>
                   <TableCell class="text-right">
-                    <span class="mr-0.5">$</span>
                     <span>{{ (transaction.cost).toFixed(2) }}</span>
                   </TableCell>
                   <TableCell class="text-right p-4">{{ transaction.remaingShare }}</TableCell>

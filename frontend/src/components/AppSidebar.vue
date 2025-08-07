@@ -82,14 +82,14 @@ const data = {
 </script>
 
 <template>
-  <Sidebar v-bind="props">
-    <SidebarHeader>
+  <Sidebar v-bind="props" class="border-none shadow-sm">
+    <SidebarHeader class="bg-white">
       <TeamSwitcher :teams="data.teams" />
     </SidebarHeader>
-    <SidebarContent>
+    <SidebarContent class="bg-white">
       <NavMain :items="data.navMain" />
     </SidebarContent>
-    <SidebarFooter>
+    <SidebarFooter class="bg-white">
       <NavUser :user="data.user" />
     </SidebarFooter>
     <SidebarRail />
