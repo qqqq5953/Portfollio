@@ -21,8 +21,6 @@ Deno.serve(async (req) => {
   }
 
   const reqBody = await req.json();
-  console.log("reqBody", reqBody);
-
   const { data, error } = await supabaseClient
     .from('transactions')
     .select('id, symbol, price, share, side, currency, exchange_rate, date, created_at')
@@ -84,39 +82,49 @@ type EnrichedSellTrade = InputTrade & {
 
 // 🔁 Convert and process
 function enrichSellTradesWithGainData(inputTrades: InputTrade[]): EnrichedSellTrade[] {
-  const simplifiedTrades: Trade[] = inputTrades.map(t => ({
-    side: t.side,
-    share: t.share,
-    price: t.price,
-    date: t.date,
-  }));
+  const groupedTrades: Record<string, Trade[]> = {};
 
-  const fifoResults = calculateFIFOGainPerSell(simplifiedTrades);
+  // 按 symbol 分組
+  for (const t of inputTrades) {
+    if (!groupedTrades[t.symbol]) groupedTrades[t.symbol] = [];
+    groupedTrades[t.symbol].push({
+      side: t.side,
+      share: t.share,
+      price: t.price,
+      date: t.date,
+    });
+  }
 
-  // match enriched data back to sell trades
-  const enrichedSells: InputTrade[] = [];
+  const enrichedSells: EnrichedSellTrade[] = [];
 
-  for (const sell of inputTrades.filter(t => t.side === 'sell')) {
-    const matched = fifoResults.find(
-      r =>
-        r.sellDate === sell.date &&
-        r.share === sell.share &&
-        r.sellPrice === sell.price
-    );
+  for (const symbol in groupedTrades) {
+    const fifoResults = calculateFIFOGainPerSell(groupedTrades[symbol]);
 
-    if (matched) {
-      enrichedSells.push({
-        ...sell,
-        costBasis: matched.costBasis,
-        gainAmount: matched.gainAmount,
-        gainPercentage: matched.gainPercentage,
-        breakdown: matched.breakdown,
-      });
+    const sellTrades = inputTrades.filter(t => t.side === 'sell' && t.symbol === symbol);
+
+    for (const sell of sellTrades) {
+      const matched = fifoResults.find(
+        r =>
+          r.sellDate === sell.date &&
+          r.share === sell.share &&
+          r.sellPrice === sell.price
+      );
+
+      if (matched) {
+        enrichedSells.push({
+          ...sell,
+          costBasis: matched.costBasis,
+          gainAmount: matched.gainAmount,
+          gainPercentage: matched.gainPercentage,
+          breakdown: matched.breakdown,
+        });
+      }
     }
   }
 
   return enrichedSells;
 }
+
 
 function calculateFIFOGainPerSell(trades: Trade[]): SellResult[] {
   const buyQueue: { share: number; price: number; date: string }[] = [];

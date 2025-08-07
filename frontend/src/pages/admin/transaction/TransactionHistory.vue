@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
@@ -9,7 +10,7 @@ import {
   TableCell,
   TableHead,
 } from "@/components/ui/table";
-import { Plus, ArrowDown, ArrowUp } from "lucide-vue-next";
+import { Plus, ArrowDown, ArrowUp, Pencil, Trash } from "lucide-vue-next";
 import { callEdgeFunction } from "@/lib/helper";
 import { supabase } from "@/lib/supabase";
 import { computed, onMounted, ref } from "vue";
@@ -100,9 +101,9 @@ onMounted(async () => {
         v-model="selectedSide"
         @update:model-value="(side) => handleDisplayTransactions(side as Side)"
       >
-        <TabsList class="w-full sm:w-1/2 mx-auto mb-5 py-6 px-1.5">
-          <TabsTrigger value="buy" class="py-4.5">Buy</TabsTrigger>
-          <TabsTrigger value="sell" class="py-4.5">Sell</TabsTrigger>
+        <TabsList class="w-full sm:w-1/2 mx-auto mb-5 py-6 px-1.5 bg-neutral-100">
+          <TabsTrigger value="buy" class="py-4.5 text-base">Buy</TabsTrigger>
+          <TabsTrigger value="sell" class="py-4.5 text-base">Sell</TabsTrigger>
         </TabsList>
         <!-- buy tab -->
         <TabsContent value="buy" class="flex flex-col gap-4 ">
@@ -127,7 +128,6 @@ onMounted(async () => {
                 </div>
                 <div class="flex items-end justify-center gap-2">
                   <div class="text-2xl font-bold">
-                    <span class="mr-0.5">$</span>
                     <span>{{ totalCost }}</span>
                   </div>
                 </div>
@@ -135,13 +135,14 @@ onMounted(async () => {
             </Card>
   
             <!-- Desktop Table -->
-            <Table class="hidden sm:table sm:max-w-xl sm:mx-auto">
+            <Table class="hidden sm:table sm:max-w-3xl sm:mx-auto">
               <TableHeader>
                 <TableRow>
-                  <TableHead class="text-neutral-500 font-light py-4">Date</TableHead>
-                  <TableHead class="text-neutral-500 font-light">Ticker</TableHead>
-                  <TableHead class="text-right text-neutral-500 font-light">Total Cost</TableHead>
-                  <TableHead class="text-right text-neutral-500 font-light">Share</TableHead>
+                  <TableHead class="text-neutral-500 font-light py-4 w-1/5">Date</TableHead>
+                  <TableHead class="text-center text-neutral-500 font-light w-1/5">Ticker</TableHead>
+                  <TableHead class="text-right text-neutral-500 font-light w-1/5">Total Cost</TableHead>
+                  <TableHead class="text-right text-neutral-500 font-light w-1/5">Share</TableHead>
+                  <TableHead class="text-right pr-8 text-neutral-500 font-light w-1/5">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -150,18 +151,27 @@ onMounted(async () => {
                   :key="transaction.id"
                 >
                   <TableCell class="py-4 text-gray-500">{{ transaction.date }}</TableCell>
-                  <TableCell class="font-medium">
+                  <TableCell class="font-medium text-center">
                     <span class="bg-indigo-100 px-2 py-1 rounded-full text-xs">
                       {{transaction.symbol}}
                     </span>
                   </TableCell>
                   <TableCell class="text-right">
-                    <span class="mr-0.5">$</span>
                     <span>{{ transaction.price * transaction.share }}</span>
                   </TableCell>
                   <TableCell class="text-right">{{
                     transaction.share
                   }}</TableCell>
+                  <TableCell>
+                    <div class="flex items-center justify-end gap-2">
+                      <Button variant="outline" size="icon">
+                        <Pencil />
+                      </Button>
+                      <Button variant="outline" size="icon">
+                        <Trash />
+                      </Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
               </TableBody>
             </Table>
@@ -181,13 +191,14 @@ onMounted(async () => {
                       </span>
                       <span class="text-sm text-gray-400">{{ transaction.date }}</span>
                     </div>
-                    <div class="flex flex-col items-center gap-1">
-                      <div class="flex items-center gap-1">
-                        <span class="">${{ transaction.price }}</span>
+                    <div class="flex flex-col items-end gap-1.5">
+                      <div class="font-semibold">{{ (transaction.price * transaction.share).toFixed(2) }}</div>
+                      <div class="flex items-center gap-1 text-sm text-gray-400">
+                        <span>{{ transaction.price.toFixed(2) }}</span>
                         <span>x</span>
                         <span>{{ transaction.share }}</span>
+                        <span class="">shares</span>
                       </div>
-                      <span class="text-sm text-gray-500">Total: ${{ transaction.price * transaction.share }}</span>
                     </div>
                   </div>
                 </div>
@@ -237,7 +248,8 @@ onMounted(async () => {
                       'text-neutral-600': totalGain === 0,
                     }"
                   >
-                    {{ totalGain >= 0 ? "+" : "-" }} ${{ Math.abs(totalGain) }}
+                    <span class="mr-0.5">{{ totalGain >= 0 ? "+" : "-" }}</span> 
+                    <span>{{ Math.abs(totalGain) }}</span>
                   </span>
                   </div>
                 </CardContent>
@@ -250,7 +262,11 @@ onMounted(async () => {
                         <span class="text-2xl font-bold" :class="{
                           'text-rose-600': totalGainPercentage < 0,
                           'text-green-500': totalGainPercentage > 0,
-                        }">{{ totalGainPercentage.toFixed(2) }} %</span>
+                        }">
+                          <span>{{ totalGainPercentage >= 0 ? "+" : "-" }}</span> 
+                          <span class="mx-0.5">{{ Math.abs(totalGainPercentage).toFixed(2) }}</span>
+                          <span>%</span>
+                        </span>
                       </div>
                   </div>
                 </CardContent>
@@ -296,17 +312,13 @@ onMounted(async () => {
                     }"
                     class="text-right"
                     >
-                    <span v-if="transaction.gainAmount >= 0">+</span>
-                    <span v-else>-</span>
-                    <span class="mx-0.5">$</span>
-                    <span>{{ Math.abs(transaction.gainAmount).toFixed(2) }}</span>
+                    <span>{{ transaction.gainAmount > 0 ? "+" : "" }}</span>
+                    <span class="ml-0.5">{{ transaction.gainAmount.toFixed(2) }}</span>
                   </TableCell>
                   <TableCell class="text-right">
-                    <span class="mr-0.5">$</span>
                     <span>{{ (transaction.price * transaction.share).toFixed(2) }}</span>
                   </TableCell>
                   <TableCell class="text-right">
-                    <span class="mr-0.5">$</span>
                     <span>{{ transaction.costBasis.toFixed(2) }}</span>
                   </TableCell>
                   <TableCell class="text-right p-4">{{
@@ -321,7 +333,7 @@ onMounted(async () => {
               <Card 
                 v-for="transaction in transactions"
                 :key="transaction.id"
-                class="p-0 shadow-none border-none"
+                class="shadow-none border-none p-4"
               >
                 <div class="space-y-3">
                   <div class="flex justify-between items-end">
@@ -336,17 +348,18 @@ onMounted(async () => {
                       :class="{
                         'text-rose-600 bg-rose-100': transaction.gainPercentage < 0,
                         'text-green-600 bg-green-100': transaction.gainPercentage > 0,
+                        'text-neutral-800 bg-neutral-200': transaction.gainPercentage === 0,
                       }"
                     >
-                      <ArrowUp v-if="transaction.gainPercentage >= 0" :size="14" stroke-width="3" /> 
-                      <ArrowDown v-else :size="14" stroke-width="3" /> 
+                      <ArrowUp v-if="transaction.gainPercentage > 0" :size="14" stroke-width="3" /> 
+                      <ArrowDown v-else-if="transaction.gainPercentage < 0" :size="14" stroke-width="3" /> 
                       {{ Math.abs(transaction.gainPercentage).toFixed(2) }} %
                     </div>
                   </div>
                   
                   <div class="flex justify-between items-center border-t pt-3 px-2 text-sm">
                     <div class="text-neutral-500">
-                      {{ transaction.gainAmount >= 0 ? "Gain" : "Loss" }}
+                      Profit
                     </div>
                     <div 
                       :class="{
@@ -354,17 +367,23 @@ onMounted(async () => {
                         'text-green-600': transaction.gainAmount > 0,
                       }"
                     >
-                      <span class="mr-0.5">$</span>
+                      <span class="mr-0.5">{{ 
+                        transaction.gainAmount > 0 
+                          ? "+" 
+                          : transaction.gainAmount < 0
+                            ? "-"
+                            : "" 
+                        }}
+                      </span>
                       <span>
                         {{ Math.abs(transaction.gainAmount).toFixed(2) }}
                       </span>
                     </div>
-                  </div>
-                  
+                    </div>
+                    
                   <div class="flex justify-between items-center border-t pt-3 px-2 text-sm">
                     <div class="text-neutral-500">Settlement</div>
                     <div>
-                      <span class="mr-0.5">$</span>
                       <span>{{ (transaction.price * transaction.share).toFixed(2) }}</span>
                     </div>
                   </div>
@@ -372,7 +391,6 @@ onMounted(async () => {
                   <div class="flex justify-between items-center border-t pt-3 px-2 text-sm">
                     <div class="text-neutral-500">Cost Basis</div>
                     <div>
-                      <span class="mr-0.5">$</span>
                       <span>{{ transaction.costBasis.toFixed(2) }}</span>
                     </div>
                   </div>
