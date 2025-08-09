@@ -47,23 +47,13 @@ export async function callEdgeFunction<T = any>({
   }
 }
 
-export const debounce = (
-  func: Function,
-  wait: number,
-  getCurrentValue?: () => string | undefined
-) => {
-  let timeout: ReturnType<typeof setTimeout>;
-  return function executedFunction(...args: any[]) {
-    const later = () => {
-      clearTimeout(timeout);
+export function debounce<T extends (...args: any[]) => void>(fn: T, delay = 500) {
+  let timer: ReturnType<typeof setTimeout>;
 
-      if (getCurrentValue) {
-        const currentValue = getCurrentValue();
-        if (!currentValue || currentValue.length === 0) return;
-      }
-      func(...args);
-    };
-    clearTimeout(timeout);
-    timeout = setTimeout(later, wait);
+  return (...args: Parameters<T>) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      fn(...args);
+    }, delay);
   };
-};
+}

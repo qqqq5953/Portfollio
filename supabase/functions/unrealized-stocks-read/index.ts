@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
   // console.log("uniqueSymbols", uniqueSymbols);
 
   const res = await Promise.allSettled([
-    ...uniqueSymbols.map(symbol => fetch(`https://ws.api.cnyes.com/ws/api/v1/quote/quotes/USS:${symbol}:STOCK?column=AI`))
+    ...uniqueSymbols.map(symbol => fetch(`https://ws.api.cnyes.com/ws/api/v1/quote/quotes/USS:${symbol}:STOCK?column=E`))
   ])
 
   const result = await Promise.allSettled(

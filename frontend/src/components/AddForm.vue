@@ -26,7 +26,7 @@ import {
   PopoverTrigger,
   PopoverContent,
 } from "@/components/ui/popover";
-import { CalendarIcon, RefreshCw } from "lucide-vue-next";
+import { CalendarIcon, Loader2 } from "lucide-vue-next";
 import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -42,7 +42,7 @@ import { toDate } from "reka-ui/date";
 import { callEdgeFunction, debounce } from "@/lib/helper";
 import { supabase } from "@/lib/supabase";
 import { DateTime } from "luxon";
-import { fetchExchangeRate } from "@/api/stock";
+import { fetchClosingPrice, fetchExchangeRate } from "@/api/stock";
 import { toast } from "vue-sonner";
 
 const df = new DateFormatter("en-US", {
@@ -61,6 +61,7 @@ const formSchema = z.object({
   price: z
     .number({ required_error: "Price is required." })
     .min(1, "Price must be at least 1"),
+  closingPrice: z.number(),
   exchangeRate: z.number().optional(),
   fee: z.number().optional(),
   tax: z.number().optional(),
@@ -73,16 +74,17 @@ const {
   setFieldValue,
   resetForm,
   setFieldError,
-  errors,
+  isSubmitting,
 } = useForm({
   validationSchema: toTypedSchema(formSchema),
   initialValues: {
     side: "buy",
     market: "US",
-    date: "",
-    symbol: "",
+    date: undefined,
+    symbol: undefined,
     share: undefined,
     price: undefined,
+    closingPrice: undefined,
     exchangeRate: undefined,
     fee: undefined,
     tax: undefined,
@@ -227,6 +229,7 @@ const onSubmit = handleSubmit(async (values) => {
 });
 
 // Symbol validation
+const isLoadingClosingPrice = ref(false);
 const isValidatingSymbol = ref(false);
 const symbolValidation = ref({
   status: "idle" as "valid" | "invalid" | "idle",
@@ -235,8 +238,7 @@ const symbolValidation = ref({
 
 const debouncedValidateSymbol = debounce(
   validateSymbolAndFetchPrice,
-  500,
-  () => values.symbol // Pure function - pass current value getter
+  500
 );
 
 async function validateSymbolAndFetchPrice(symbol: string) {
@@ -278,6 +280,8 @@ async function validateSymbolAndFetchPrice(symbol: string) {
       status: "valid",
       message: `✓ Valid symbol`,
     };
+
+    await handleFetchClosingPrice(symbol);
   } catch (error) {
     console.error("Symbol validation error:", error);
     symbolValidation.value = {
@@ -286,6 +290,22 @@ async function validateSymbolAndFetchPrice(symbol: string) {
     };
   } finally {
     isValidatingSymbol.value = false;
+  }
+}
+
+async function handleFetchClosingPrice(symbol: string) {
+  if (symbol && values.date) {
+    try {
+      isLoadingClosingPrice.value = true;
+      symbol = values.market === "TW" ? symbol + ".TW" : symbol;
+      const res = await fetchClosingPrice({ symbol, date: values.date });
+      setFieldValue("closingPrice", Number(res.quotes[0].close.toFixed(2)));
+    } catch (error) {
+      console.error("Closing price fetch error:", error);
+      setFieldError("closingPrice", "Failed to fetch closing price");
+    } finally {
+      isLoadingClosingPrice.value = false;
+    }
   }
 }
 
@@ -300,8 +320,6 @@ function handleSymbolInput(symbol: string) {
 }
 
 // Exchange rate fetching
-const isLoadingExchangeRate = ref(false);
-
 async function handleFetchExchangeRate(date: string) {
   if (values.market === "TW") {
     setFieldValue("exchangeRate", 1);
@@ -322,8 +340,6 @@ async function handleFetchExchangeRate(date: string) {
   } catch (error) {
     console.error("Exchange rate fetch error:", error);
     setFieldError("exchangeRate", "Failed to fetch exchange rate");
-  } finally {
-    isLoadingExchangeRate.value = false;
   }
 }
 
@@ -411,12 +427,68 @@ async function handleMarketChange() {
       </FormField>
     </div>
 
+    <FormField name="date">
+      <FormItem class="flex flex-col">
+        <FormLabel>
+          <div>
+            Date
+            <span class="text-xs text-red-500">*</span>
+          </div>
+          <div class="flex items-center gap-1.5 text-xs text-neutral-500 ml-auto" v-if="values.exchangeRate">
+            <span class="font-light">Exchange rate:</span>
+            <span class=" text-neutral-600">{{ values.exchangeRate }}</span>
+          </div>
+        </FormLabel>
+        <Popover>
+          <PopoverTrigger as-child>
+            <FormControl>
+              <Button
+                variant="outline"
+                :class="
+                  cn(
+                    'ps-3 text-start font-normal',
+                    !dateValue && 'text-muted-foreground'
+                  )
+                "
+              >
+                <span>{{
+                  dateValue ? df.format(toDate(dateValue)) : "Pick a date"
+                }}</span>
+                <CalendarIcon class="ms-auto h-4 w-4 opacity-50" />
+              </Button>
+              <input hidden />
+            </FormControl>
+          </PopoverTrigger>
+          <PopoverContent class="w-auto p-0">
+            <Calendar
+              v-model:placeholder="placeholder"
+              :model-value="dateValue"
+              calendar-label="Transaction Date"
+              :min-value="new CalendarDate(1900, 1, 1)"
+              :max-value="today(getLocalTimeZone())"
+              :is-date-disabled="isDisabledDate"
+              @update:model-value="handleDateChange"
+            />
+          </PopoverContent>
+        </Popover>
+        <FormMessage />
+      </FormItem>
+    </FormField>
+
     <FormField name="symbol" v-slot="{ componentField }">
       <FormItem>
         <FormLabel>
           <div>
             Symbol
             <span class="text-xs text-red-500">*</span>
+          </div>
+          <div class="flex items-center gap-1.5 text-xs text-neutral-500 ml-auto" :class="{ 'opacity-50': isLoadingClosingPrice }" v-if="values.closingPrice">
+            <Loader2 :size="12" class="animate-spin" v-if="isLoadingClosingPrice" />
+            <span class="font-light">Closing price:</span>
+            <span class="text-neutral-600">{{ values.closingPrice }}</span>
+          </div>
+          <div v-if="values.date && values.symbol && !values.closingPrice && isLoadingClosingPrice" class="text-xs text-neutral-500 font-light ml-auto">
+            Fetching closing price ...
           </div>
         </FormLabel>
         <div class="relative">
@@ -481,51 +553,7 @@ async function handleMarketChange() {
       </FormItem>
     </FormField>
 
-    <FormField name="date">
-      <FormItem class="flex flex-col">
-        <FormLabel>
-          <div>
-            Date
-            <span class="text-xs text-red-500">*</span>
-          </div>
-        </FormLabel>
-        <Popover>
-          <PopoverTrigger as-child>
-            <FormControl>
-              <Button
-                variant="outline"
-                :class="
-                  cn(
-                    'ps-3 text-start font-normal',
-                    !dateValue && 'text-muted-foreground'
-                  )
-                "
-              >
-                <span>{{
-                  dateValue ? df.format(toDate(dateValue)) : "Pick a date"
-                }}</span>
-                <CalendarIcon class="ms-auto h-4 w-4 opacity-50" />
-              </Button>
-              <input hidden />
-            </FormControl>
-          </PopoverTrigger>
-          <PopoverContent class="w-auto p-0">
-            <Calendar
-              v-model:placeholder="placeholder"
-              :model-value="dateValue"
-              calendar-label="Transaction Date"
-              :min-value="new CalendarDate(1900, 1, 1)"
-              :max-value="today(getLocalTimeZone())"
-              :is-date-disabled="isDisabledDate"
-              @update:model-value="handleDateChange"
-            />
-          </PopoverContent>
-        </Popover>
-        <FormMessage />
-      </FormItem>
-    </FormField>
-
-    <FormField name="exchangeRate" v-slot="{ componentField }">
+    <!-- <FormField name="exchangeRate" v-slot="{ componentField }">
       <FormItem>
         <FormLabel>
           <div>
@@ -540,7 +568,6 @@ async function handleMarketChange() {
                 variant="ghost"
                 size="sm"
                 @click="handleFetchExchangeRate"
-                :disabled="isLoadingExchangeRate"
                 class="h-6 px-2 text-xs [&_svg:not([class*='size-'])]:size-3"
               >
                 <RefreshCw /> Refresh
@@ -567,7 +594,7 @@ async function handleMarketChange() {
           </div>
         </div>
       </FormItem>
-    </FormField>
+    </FormField> -->
 
     <Accordion type="single" collapsible>
       <AccordionItem value="item-1">
@@ -626,7 +653,7 @@ async function handleMarketChange() {
       <Button
         type="submit"
         class="bg-indigo-600 hover:bg-indigo-500"
-        :disabled="isLoadingExchangeRate || isValidatingSymbol"
+        :disabled="isValidatingSymbol || isLoadingClosingPrice || isSubmitting"
       >
         Submit
       </Button>

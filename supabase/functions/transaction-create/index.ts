@@ -48,8 +48,17 @@ Deno.serve(async (req) => {
     
     if (error) return jsonResponse({ data, error})
 
-    const buyTransactions = data.filter((transaction: any) => transaction.side === "buy")
-    const sellTransactions = data.filter((transaction: any) => transaction.side === "sell")
+    const {
+      buyTransactions,
+      sellTransactions
+    } = data.reduce((acc, curr) => {
+      if (curr.side === "buy") {
+        acc.buyTransactions.push(curr)
+      } else {
+        acc.sellTransactions.push(curr)
+      }
+      return acc
+    }, { buyTransactions: [], sellTransactions: [] })
     const totalBuyShares = buyTransactions.reduce((acc, curr) => acc + curr.share, 0)
     const totalSellShares = sellTransactions.reduce((acc, curr) => acc + curr.share, 0)
     const remainingShares = totalBuyShares - totalSellShares
@@ -75,6 +84,8 @@ Deno.serve(async (req) => {
     note,
   }
   console.log("payload", payload);
+
+
 
   const { data, error } = await supabaseClient.from('transactions').insert(payload)
 
