@@ -98,7 +98,16 @@ export const routes = [
             },
           },
         ],
-      },
+      },  
+      {
+        path: "symbol/:symbol/transactions",
+        name: "symbol-transactions",
+        component: () => import("@/pages/admin/symbol/SymbolTransactions.vue"),
+        props: true,
+        meta: {
+          title: "Transactions History",
+        },
+      }
     ],
   },
   {

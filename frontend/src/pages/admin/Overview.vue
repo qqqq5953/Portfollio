@@ -13,6 +13,7 @@ import PieChart from "@/components/PieChart.vue";
 import { onMounted, ref, computed } from "vue";
 import { callEdgeFunction } from "@/lib/helper";
 import { supabase } from "@/lib/supabase";
+import { useRouter } from "vue-router";
 
 type UnrealizedStocksReadResponse = {
   unrealized: {
@@ -34,7 +35,9 @@ const currentPrices = ref<UnrealizedStocksReadResponse["currentPrices"]>({});
 const totalProfitPercentage = ref(0);
 const totalProfit = ref(0);
 const totalValue = ref(0);
-const isLoading = ref(true);
+const isLoading = ref(false);
+
+const router = useRouter();
 
 const pieChartData = computed(() => {
   if (unrealizedStocks.value.length === 0) return [];
@@ -53,7 +56,16 @@ const pieChartData = computed(() => {
   });
 });
 
+function handleClickSymbol(symbol: string) {
+  router.push({
+    name: "symbol-transactions",
+    params: { symbol },
+  });
+}
+
 async function handleDisplayTransactions() {
+  isLoading.value = true;
+
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -66,7 +78,7 @@ async function handleDisplayTransactions() {
   });
   console.log("data", data);
 
-  if (data) {
+  if (data && data.unrealized.length > 0) {
     const {
       profit,
       cost,
@@ -83,8 +95,9 @@ async function handleDisplayTransactions() {
     totalProfit.value = Number(profit.toFixed(2));
     totalProfitPercentage.value = Number(((profit / cost) * 100).toFixed(2));
     totalValue.value = Number(value.toFixed(2));
-    isLoading.value = false;
   }
+
+  isLoading.value = false;
 }
 
 onMounted(async () => {
@@ -95,21 +108,22 @@ onMounted(async () => {
 <template>
   <div class="space-y-6">
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <Card class="border-none shadow-xs">
+      <Card>
         <CardContent>
           <div class="text-sm text-muted-foreground text-center">Profit %</div>
           <div v-if="isLoading" class="flex justify-center items-center h-7 mt-1">
             <Loader2 class="animate-spin text-neutral-300" :size="24" />
           </div>
           <div v-else class="text-xl font-medium text-center mt-1"
-          :class="{ 
-            'text-green-500': totalProfitPercentage > 0, 
-            'text-red-500': totalProfitPercentage < 0,
-            'text-neutral-600': totalProfitPercentage === 0
-          }"
+            :class="{ 
+              'text-green-500': totalProfitPercentage > 0, 
+              'text-red-500': totalProfitPercentage < 0,
+              'text-neutral-600': totalProfitPercentage === 0
+            }"
           >
-          <span class="mr-0.5">{{ totalProfitPercentage >= 0 ? '+' : '-' }}</span>
-          <span>{{ Math.abs(totalProfitPercentage) }}%</span>
+          <span class="mr-0.5">{{ totalProfitPercentage > 0 ? '+' :
+          totalProfitPercentage < 0 ? '-' : '' }}</span>
+          <span>{{ Math.abs(totalProfitPercentage) }} %</span>
           </div>
         </CardContent>
       </Card>
@@ -128,7 +142,8 @@ onMounted(async () => {
             'text-neutral-600': totalProfit === 0
           }"
           >
-          <span class="mr-0.5">{{ totalProfit >= 0 ? '+' : '-' }}</span>
+          <span class="mr-0.5">{{ totalProfit > 0 ? '+' :
+          totalProfit < 0 ? '-' : '' }}</span>
           <span>{{ Math.abs(totalProfit) }}</span>
           </div>
         </CardContent>
@@ -179,6 +194,8 @@ onMounted(async () => {
                 <TableRow
                   v-for="transaction in unrealizedStocks"
                   :key="transaction.id"
+                  @click="handleClickSymbol(transaction.symbol)"
+                  class="cursor-pointer"
                 >
                   <TableCell class="font-medium py-4">
                     <span class="bg-indigo-100 px-2 py-1 rounded-full text-xs">

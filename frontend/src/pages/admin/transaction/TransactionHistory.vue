@@ -128,11 +128,12 @@ onMounted(async () => {
                    <Table class="">
                      <TableHeader>
                        <TableRow>
-                         <TableHead class="text-neutral-500 font-light py-4 w-1/5">Date</TableHead>
-                         <TableHead class="text-center text-neutral-500 font-light w-1/5">Ticker</TableHead>
-                         <TableHead class="text-right text-neutral-500 font-light w-1/5">Total Cost</TableHead>
-                         <TableHead class="text-right text-neutral-500 font-light w-1/5">Share</TableHead>
-                         <TableHead class="text-right pr-8 text-neutral-500 font-light w-1/5">Action</TableHead>
+                         <TableHead class="text-neutral-500 font-light py-4 w-1/6">Date</TableHead>
+                         <TableHead class="text-center text-neutral-500 font-light w-1/6">Ticker</TableHead>
+                         <TableHead class="text-right text-neutral-500 font-light w-1/6">Share</TableHead>
+                         <TableHead class="text-right text-neutral-500 font-light w-1/6">Price</TableHead>
+                         <TableHead class="text-right text-neutral-500 font-light w-1/6">Total Cost</TableHead>
+                         <TableHead class="text-right pr-8 text-neutral-500 font-light w-1/6">Action</TableHead>
                        </TableRow>
                      </TableHeader>
                      <TableBody>
@@ -146,12 +147,15 @@ onMounted(async () => {
                              {{transaction.symbol}}
                            </span>
                          </TableCell>
-                         <TableCell class="text-right">
-                           <span>{{ transaction.price * transaction.share }}</span>
-                         </TableCell>
                          <TableCell class="text-right">{{
                            transaction.share
                          }}</TableCell>
+                         <TableCell class="text-right">{{
+                           transaction.price
+                         }}</TableCell>
+                         <TableCell class="text-right">
+                           <span>{{ transaction.price * transaction.share }}</span>
+                         </TableCell>
                          <TableCell>
                            <div class="flex items-center justify-end gap-2">
                              <Button variant="outline" size="icon">

@@ -18,7 +18,11 @@ import { Button } from "@/components/ui/button";
 
 const route = useRoute();
 const router = useRouter();
-const title = computed(() => route.meta.title);
+const title = computed(() =>
+  typeof route.meta.getTitle === "function"
+    ? route.meta.getTitle(route)
+    : route.meta.title
+);
 
 const handleLogout = async () => {
   await supabase.auth.signOut();

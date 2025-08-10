@@ -297,7 +297,7 @@ async function handleFetchClosingPrice(symbol: string) {
   if (symbol && values.date) {
     try {
       isLoadingClosingPrice.value = true;
-      symbol = values.market === "TW" ? symbol + ".TW" : symbol;
+      symbol = values.market === "TW" ? symbol + ".TW" : symbol.replace(".", "-");
       const res = await fetchClosingPrice({ symbol, date: values.date });
       setFieldValue("closingPrice", Number(res.quotes[0].close.toFixed(2)));
     } catch (error) {
