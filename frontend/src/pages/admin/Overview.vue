@@ -171,7 +171,7 @@ onMounted(async () => {
           <CardTitle class="font-medium text-neutral-600">Unrealized Stocks</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table class="hidden sm:table sm:max-w-4xl sm:mx-auto">
+          <Table class="table sm:max-w-4xl sm:mx-auto">
             <TableHeader>
               <TableRow>
                 <TableHead class="text-neutral-500 font-light p-4">Ticker</TableHead>

@@ -13,7 +13,7 @@ import {
 import { Plus, ArrowDown, ArrowUp, Pencil, Trash } from "lucide-vue-next";
 import { callEdgeFunction } from "@/lib/helper";
 import { supabase } from "@/lib/supabase";
-import { computed, onMounted, ref } from "vue";
+import { onMounted, ref } from "vue";
 import { toast } from "vue-sonner";
 
 type Side = "buy" | "sell";
@@ -41,10 +41,8 @@ const transactions = ref<Transaction[]>([]);
 const isTransactionLoading = ref(false);
 const selectedSide = ref<Side>("buy");
 const totalGain = ref(0);
-const totalCost = ref(0);
-const totalGainPercentage = computed(() => {
-  return (totalGain.value / totalCost.value) * 100;
-});
+const totalGainPercentage = ref(0);
+
 async function fetchTransactions(side: Side) {
   const {
     data: { session },
@@ -67,14 +65,13 @@ async function handleDisplayTransactions(side: Side) {
   console.log("data", data);
   if (data) {
     transactions.value = data;
-    totalCost.value = transactions.value.reduce(
-      (acc, item) => acc + item.price * item.share,
-      0
-    );
-    totalGain.value = transactions.value.reduce(
-      (acc, item) => acc + item.gainAmount,
-      0
-    );
+    const { _totalGain, _totalCost } = transactions.value.reduce((acc, item) => {
+      acc._totalGain += item.gainAmount;
+      acc._totalCost += item.price * item.share;
+      return acc;
+    }, { _totalGain: 0, _totalCost: 0 });
+    totalGain.value = _totalGain;
+    totalGainPercentage.value = (_totalGain / _totalCost) * 100;
   }
 
   isTransactionLoading.value = false;

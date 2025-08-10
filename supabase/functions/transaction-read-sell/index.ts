@@ -25,7 +25,7 @@ Deno.serve(async (req) => {
     .from('transactions')
     .select('id, symbol, price, share, side, currency, exchange_rate, date, created_at')
     .eq('user_id', reqBody.userId)
-    .order('date', { ascending: false })
+    .order('date', { ascending: true })
   
   console.log("read result - data:", data);
   console.log("read result - error:", error);
