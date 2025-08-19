@@ -46,3 +46,7 @@ pending:
 ## 建立共用元件
 - format number 元件顯示漲跌（+, -）、需不需要%
 - 整理 edge function，將共用的部份抽出來
+
+## add logo
+<img src="https://api.elbstream.com/logos/symbol/AAPL" />
+<a href="https://elbstream.com">Logos provided by Elbstream</a>
