@@ -17,6 +17,7 @@ import { useRouter } from "vue-router";
 import { useSidebar } from "@/components/ui/sidebar/utils";
 import FormattedNumber from "@/components/FormattedNumber.vue";
 import StockLogo from "@/components/StockLogo.vue";
+import Symbol from "@/components/Symbol.vue";
 
 type UnrealizedStocksReadResponse = {
   unrealized: {
@@ -205,7 +206,7 @@ onMounted(async () => {
             <Table class="table sm:max-w-4xl sm:mx-auto">
               <TableHeader>
                 <TableRow>
-                  <TableHead class="text-center text-neutral-500 font-light p-4 w-[120px] min-w-[120px]">Ticker</TableHead>
+                  <TableHead class="text-center text-neutral-500 font-light p-4 w-[120px] min-w-[120px]">Symbol</TableHead>
                   <TableHead class="text-right text-neutral-500 font-light w-[100px] min-w-[100px]">Profit</TableHead>
                   <TableHead class="text-right text-neutral-500 font-light">
                     <div>Market Value</div>
@@ -234,27 +235,23 @@ onMounted(async () => {
                     <TableCell class="font-medium py-6">
                       <div class="flex items-center gap-2 shrink-0">
                         <StockLogo :symbol="transaction.symbol" />
-                        <span class="text-indigo-500 px-2 rounded-md font-semibold text-sm">
-                          {{ transaction.symbol }}
-                        </span>
+                        <Symbol :symbol="transaction.symbol" type="table" />
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div class="flex flex-col items-end gap-0 font-medium text-sm">
-                        <FormattedNumber
-                          type="decimal"
-                          :value="transaction.profit"
-                          :useColor="true"
-                          :useSign="true"
-                        />
-                        <FormattedNumber
-                          type="percentage"
-                          :value="transaction.profitPercentage"
-                          :useColor="true"
-                          :useSign="true"
-                          :useParentheses="true"
-                        />
-                      </div>
+                      <FormattedNumber
+                        type="decimal"
+                        :value="transaction.profit"
+                        :useColor="true"
+                        :useSign="true"
+                      />
+                      <FormattedNumber
+                        type="percentage"
+                        :value="transaction.profitPercentage"
+                        :useColor="true"
+                        :useSign="true"
+                        :useParentheses="true"
+                      />
                     </TableCell>
                     <TableCell class="text-right">
                       <FormattedNumber
@@ -290,9 +287,7 @@ onMounted(async () => {
                 <div class="flex justify-between items-end">
                   <div>
                     <StockLogo :symbol="transaction.symbol" class="mb-0.5 ml-2"/>
-                    <span class="text-indigo-500 px-2 font-semibold text-lg">
-                      {{ transaction.symbol }}
-                    </span>
+                    <Symbol :symbol="transaction.symbol" type="card" />
                   </div>
                   <FormattedNumber
                     class="font-medium rounded-full px-2 py-0.5 mb-0.5"

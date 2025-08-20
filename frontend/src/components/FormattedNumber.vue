@@ -42,7 +42,7 @@ const alignClass = computed(() => {
 });
 
 const number = computed(() => {
-  return props.useSign ? Math.abs(props.value) : formatNumber(props.value);
+  return props.useSign ? formatNumber(Math.abs(props.value)) : formatNumber(props.value);
 });
 
 const formattedNumber = computed(() => {
