@@ -183,31 +183,29 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="lg:px-12">
-    <header class="flex flex-col gap-2 mb-4">
-      <router-link to="/admin/overview" class="w-fit">
-        <Button variant="ghost" size="sm" class="hidden sm:flex w-fit bg-transparent cursor-pointer">
+  <div class="lg:px-12 space-y-4 sm:space-y-6">
+    <header class="flex flex-col gap-2">
+      <router-link to="/admin/overview" class="hidden sm:block w-fit">
+        <Button variant="ghost" size="sm" class="flex w-fit bg-transparent cursor-pointer">
           <ChevronLeft :size="24" />
           Back
         </Button>
       </router-link>
-      <div class="flex items-end sm:items-center justify-between">
+      <div class="flex items-end justify-between">
         <div v-if="isInfoLoading">
           <div class="flex flex-col gap-2 sm:flex-row-reverse sm:items-end">
             <Skeleton class="w-24 h-9" />
             <Skeleton class="w-48 h-9" />
           </div>
         </div>
-        <div v-else>
-          <div class="flex flex-col sm:gap-2 sm:flex-row-reverse sm:items-end">
-            <h1 class="text-2xl sm:text-3xl text-neutral-700">{{ symbol }}</h1>
-            <h2 class="text-3xl text-neutral-700 font-semibold">{{ info.name }}</h2>
-          </div>
+        <div v-else class="grow pr-4 max-w-60 sm:max-w-2/3">
+          <h1 class="text-2xl text-neutral-400">{{ symbol }}</h1>
+          <h2 class="text-3xl text-neutral-700 font-semibold truncate md:whitespace-normal md:overflow-visible md:break-all">{{ info.name }}</h2>
         </div>
         <div v-if="isInfoLoading">
           <Skeleton class="w-32 h-9" />
         </div>
-        <div v-else>
+        <div v-else class="shrink-0">
           <div class="hidden space-y-0.5 sm:block">
             <span class="text-sm text-muted-foreground font-light">Close Price: <span class="font-medium text-neutral-600">{{ info.currentPrice }}</span></span>
           </div>
@@ -218,7 +216,7 @@ onMounted(async () => {
     
     <div 
       v-if="selectedStatus === 'unrealized'" 
-      class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6" 
+      class="grid grid-cols-1 lg:grid-cols-2 gap-4" 
       :class="[ state === 'expanded' ? 'md:grid-cols-1' : 'md:grid-cols-2' ]"
     >
       <div class="grid grid-cols-2 gap-4">
@@ -319,7 +317,7 @@ onMounted(async () => {
       </Card>
     </div>
 
-    <div v-else class="grid grid-cols-2 gap-4 mb-6">
+    <div v-else class="grid grid-cols-2 gap-4">
       <Card>
         <CardContent>
           <div class="text-sm text-muted-foreground text-center mb-1">Profit %</div>
@@ -357,7 +355,7 @@ onMounted(async () => {
       </Card>
     </div>
 
-    <Card>
+    <Card class="-mx-4 rounded-none sm:mx-0 sm:rounded-xl pb-0">
       <CardContent>
         <Tabs v-model="selectedStatus">
           <TabsList class="w-full rounded-none bg-transparent">
@@ -370,7 +368,7 @@ onMounted(async () => {
               <div class="text-wrap hidden sm:text-base sm:block">Realized Transactions</div>
             </TabsTrigger>
           </TabsList>
-          <TabsContent value="unrealized" class="flex flex-col gap-4 mt-4">
+          <TabsContent value="unrealized" class="mt-6">
             <div v-if="isBuyLoading" class="space-y-8">
               <div class="space-y-4 mt-4">
                 <div class="h-10 w-full bg-neutral-200 mx-auto animate-pulse rounded-xl" v-for="_i in 5" />
@@ -378,77 +376,106 @@ onMounted(async () => {
             </div>
             <div v-else class="flex flex-col gap-4">
               <!-- Desktop Table -->
-                <div class="hidden w-full sm:block sm:mx-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead class="text-neutral-500 font-light py-4 w-1/5">Date</TableHead>
-                        <TableHead class="text-right text-neutral-500 font-light w-1/5">Share</TableHead>
-                        <TableHead class="text-right text-neutral-500 font-light w-1/5">Price</TableHead>
-                        <TableHead class="text-right text-neutral-500 font-light w-1/5">Total Cost</TableHead>
-                        <TableHead class="text-right pr-8 text-neutral-500 font-light w-1/5">Action</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      <TableRow
-                        v-for="transaction in transactions"
-                        :key="transaction.id"
-                      >
-                        <TableCell class="py-4 text-gray-500">{{ transaction.date }}</TableCell>
-                        <TableCell class="text-right">{{
-                          transaction.share
-                        }}</TableCell>
-                        <TableCell class="font-medium text-right">
-                          <span>
-                            {{transaction.price}}
-                          </span>
-                        </TableCell>
-                        <TableCell class="text-right">
-                          <span>{{ transaction.price * transaction.share }}</span>
-                        </TableCell>
-                        <TableCell>
-                          <div class="flex items-center justify-end gap-2">
-                            <Button variant="outline" size="icon">
-                              <Pencil />
-                            </Button>
-                            <Button variant="outline" size="icon">
-                              <Trash />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-                </div>
-    
+              <div class="hidden w-full sm:block sm:mx-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead class="text-neutral-500 font-light py-4 w-1/5">Date</TableHead>
+                      <TableHead class="text-right text-neutral-500 font-light w-1/5">Share</TableHead>
+                      <TableHead class="text-right text-neutral-500 font-light w-1/5">Price</TableHead>
+                      <TableHead class="text-right text-neutral-500 font-light w-1/5">Total Cost</TableHead>
+                      <TableHead class="text-right pr-8 text-neutral-500 font-light w-1/5">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow
+                      v-for="transaction in transactions"
+                      :key="transaction.id"
+                    >
+                      <TableCell class="py-4 text-gray-500">{{ transaction.date }}</TableCell>
+                      <TableCell class="text-right">{{
+                        transaction.share
+                      }}</TableCell>
+                      <TableCell class="font-medium text-right">
+                        <span>
+                          {{transaction.price}}
+                        </span>
+                      </TableCell>
+                      <TableCell class="text-right">
+                        <span>{{ transaction.price * transaction.share }}</span>
+                      </TableCell>
+                      <TableCell>
+                        <div class="flex items-center justify-end gap-2">
+                          <Button variant="outline" size="icon">
+                            <Pencil />
+                          </Button>
+                          <Button variant="outline" size="icon">
+                            <Trash />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
     
               <!-- Mobile Cards -->
-              <div class="block sm:hidden space-y-4">
-                <Card 
+              <div class="block sm:hidden">
+                <div 
                   v-for="transaction in transactions"
                   :key="transaction.id"
-                  class="p-4"
+                  class="border-b px-4 py-6 first:pt-0 last:border-b-0"
                 >
-                  <div class="space-y-3">
-                    <div class="flex justify-between items-center">
-                      <div class="flex flex-col gap-1">
-                        <span class="text-lg font-bold text-indigo-600">
-                          {{ transaction.symbol }}
-                        </span>
-                        <span class="text-sm text-gray-400">{{ transaction.date }}</span>
-                      </div>
-                      <div class="flex flex-col items-end gap-1.5">
-                        <div class="font-semibold">{{ (transaction.price * transaction.share).toFixed(2) }}</div>
-                        <div class="flex items-center gap-1 text-sm text-gray-400">
-                          <span>{{ transaction.price.toFixed(2) }}</span>
-                          <span>x</span>
-                          <span>{{ transaction.share }}</span>
-                          <span class="">shares</span>
-                        </div>
+                  <div class="space-y-2.5">                   
+                    <div class="flex justify-between items-center text-sm">
+                      <div class="font-medium text-neutral-700">{{ transaction.date }}</div>
+                      <div class="-mr-2">
+                        <FormattedNumber
+                          type="percentage"
+                          class="font-medium rounded-full px-2 py-0.5"
+                          :class="{
+                              'text-rose-600 bg-rose-100': (info.currentPrice - transaction.price) / transaction.price * 100 < 0,
+                              'text-green-600 bg-green-100': (info.currentPrice - transaction.price) / transaction.price * 100 > 0,
+                              'text-neutral-800 bg-neutral-200': (info.currentPrice - transaction.price) / transaction.price * 100 === 0,
+                            }"
+                            :value="(info.currentPrice - transaction.price) / transaction.price * 100"
+                            :useColor="true"
+                        />
                       </div>
                     </div>
+
+                    <div class="flex justify-between items-center text-sm">
+                      <div class="text-neutral-500">Profit</div>
+                      <FormattedNumber
+                        type="decimal"
+                        :class="{
+                          'text-rose-600': (info.currentPrice - transaction.price) * transaction.share < 0,
+                          'text-green-600': (info.currentPrice - transaction.price) * transaction.share > 0,
+                          'text-neutral-600': (info.currentPrice - transaction.price) * transaction.share === 0,
+                        }"
+                        :value="(info.currentPrice - transaction.price) * transaction.share"
+                        :useColor="true"
+                      /> 
+                    </div>
+
+                    <div class="flex justify-between items-center text-sm">
+                      <div class="text-neutral-500">Buy Price</div>
+                      <FormattedNumber
+                        type="decimal"
+                        :value="transaction.price"
+                      />
+                    </div>
+
+                    <div class="flex justify-between items-center text-sm">
+                      <div class="text-neutral-500">Shares</div>
+                      <FormattedNumber
+                        type="decimal"
+                        :value="transaction.share"
+                      />
+                    </div>
+
                   </div>
-                </Card>
+                </div>
               </div>
             </div>
           </TabsContent>
@@ -460,80 +487,79 @@ onMounted(async () => {
             </div>
             <div v-else-if="sellTransactions.length > 0" class="flex flex-col gap-4">
               <!-- Desktop Table -->
-                <div class="hidden w-full sm:block sm:mx-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead class="text-neutral-500 font-light py-4">Date</TableHead>
-                        <TableHead class="text-right text-neutral-500 font-light">Profit %</TableHead>
-                        <TableHead class="text-right text-neutral-500 font-light">Profit</TableHead>
-                        <TableHead class="text-right text-neutral-500 font-light">Price</TableHead>
-                        <TableHead class="text-right text-neutral-500 font-light">Cost</TableHead>
-                        <TableHead class="text-right text-neutral-500 font-light">Share</TableHead>
-                        <TableHead class="text-right pr-8 text-neutral-500 font-light">Action</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      <TableRow
-                        v-for="transaction in sellTransactions"
-                        :key="transaction.id"
+              <div class="hidden w-full sm:block sm:mx-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead class="text-neutral-500 font-light py-4">Date</TableHead>
+                      <TableHead class="text-right text-neutral-500 font-light">Profit %</TableHead>
+                      <TableHead class="text-right text-neutral-500 font-light">Profit</TableHead>
+                      <TableHead class="text-right text-neutral-500 font-light">Price</TableHead>
+                      <TableHead class="text-right text-neutral-500 font-light">Cost</TableHead>
+                      <TableHead class="text-right text-neutral-500 font-light">Share</TableHead>
+                      <TableHead class="text-right pr-8 text-neutral-500 font-light">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow
+                      v-for="transaction in sellTransactions"
+                      :key="transaction.id"
+                    >
+                      <TableCell class="py-4 text-gray-500">{{ transaction.date }}</TableCell>
+                      <TableCell 
+                        class="text-right" 
+                        :class="{
+                          'text-rose-600': transaction.profitPercentage < 0,
+                          'text-green-500': transaction.profitPercentage > 0,
+                        }"
                       >
-                        <TableCell class="py-4 text-gray-500">{{ transaction.date }}</TableCell>
-                        <TableCell 
-                          class="text-right" 
-                          :class="{
-                            'text-rose-600': transaction.profitPercentage < 0,
-                            'text-green-500': transaction.profitPercentage > 0,
-                          }"
-                        >
-                          <div>
-                            <span class="mr-0.5">{{ transaction.profitPercentage > 0 ? '+' :
-                            transaction.profitPercentage < 0 ? '-' : '' }}</span>
-                            <span>{{ transaction.profitPercentage.toFixed(2) }} %</span>
-                          </div>
-                        </TableCell>
-                        <TableCell 
-                          class="text-right"
-                          :class="{
-                            'text-rose-600': transaction.profit < 0,
-                            'text-green-500': transaction.profit > 0,
-                          }"
-                        >
-                          <div>
-                            <span class="mr-0.5">{{ transaction.profit > 0 ? '+' :
-                            transaction.profit < 0 ? '-' : '' }}</span>
-                            <span>{{ transaction.profit.toFixed(2) }}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell class="text-right">
-                          <span>{{ transaction.price}}</span>
-                        </TableCell>
-                        <TableCell class="text-right">
-                          <span>
-                            {{transaction.costBasis}}
-                          </span>
-                        </TableCell>
-                        <TableCell class="text-right">{{ transaction.share }}</TableCell>
-                        <TableCell>
-                          <div class="flex items-center justify-end gap-2">
-                            <Button variant="outline" size="icon">
-                              <Pencil />
-                            </Button>
-                            <Button variant="outline" size="icon">
-                              <Trash />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-                </div>
-    
-    
+                        <div>
+                          <span class="mr-0.5">{{ transaction.profitPercentage > 0 ? '+' :
+                          transaction.profitPercentage < 0 ? '-' : '' }}</span>
+                          <span>{{ transaction.profitPercentage.toFixed(2) }} %</span>
+                        </div>
+                      </TableCell>
+                      <TableCell 
+                        class="text-right"
+                        :class="{
+                          'text-rose-600': transaction.profit < 0,
+                          'text-green-500': transaction.profit > 0,
+                        }"
+                      >
+                        <div>
+                          <span class="mr-0.5">{{ transaction.profit > 0 ? '+' :
+                          transaction.profit < 0 ? '-' : '' }}</span>
+                          <span>{{ transaction.profit.toFixed(2) }}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell class="text-right">
+                        <span>{{ transaction.price}}</span>
+                      </TableCell>
+                      <TableCell class="text-right">
+                        <span>
+                          {{transaction.costBasis}}
+                        </span>
+                      </TableCell>
+                      <TableCell class="text-right">{{ transaction.share }}</TableCell>
+                      <TableCell>
+                        <div class="flex items-center justify-end gap-2">
+                          <Button variant="outline" size="icon">
+                            <Pencil />
+                          </Button>
+                          <Button variant="outline" size="icon">
+                            <Trash />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+
               <!-- Mobile Cards -->
               <div class="block sm:hidden space-y-4">
                 <Card 
-                  v-for="transaction in transactions"
+                  v-for="transaction in sellTransactions"
                   :key="transaction.id"
                   class="p-4"
                 >

@@ -42,7 +42,7 @@ const handleLogout = async () => {
         </Button>
       </header>
       <main
-        class="flex flex-1 flex-col gap-4 p-6 overflow-y-auto base-scrollbar bg-neutral-50"
+        class="flex flex-1 flex-col gap-4 p-4 sm:p-6 overflow-y-auto base-scrollbar bg-neutral-50"
       >
         <RouterView />
       </main>

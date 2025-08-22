@@ -27,9 +27,9 @@ const sign = computed(() => {
 
 const color = computed(() => {
   if (props.useColor) {
-    return props.value > 0 ? 'text-green-500' : props.value < 0 ? 'text-red-500' : 'text-neutral-600';
+    return props.value > 0 ? 'text-green-500' : props.value < 0 ? 'text-red-500' : 'text-neutral-800';
   }
-  return '';
+  return 'text-neutral-800';
 });
 
 const alignClass = computed(() => {
@@ -72,8 +72,8 @@ function formatNumber(num: number): number {
         {{ sign }}
       </span>
       <span v-if="props.useArrow" class="mr-1">
-        <ArrowUp v-if="number > 0" :size="14" stroke-width="3" /> 
-        <ArrowDown v-else-if="number < 0" :size="14" stroke-width="3" />
+        <ArrowUp v-if="number > 0" :size="14" stroke-width="2.5" /> 
+        <ArrowDown v-else-if="number < 0" :size="14" stroke-width="2.5" />
       </span>
       <span class="proportional-nums">{{ formattedNumber }} {{ props.type === 'percentage' ? '%' : '' }}</span>
     </div>

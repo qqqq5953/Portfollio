@@ -113,9 +113,9 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="space-y-6">  
+  <div class="space-y-4 sm:space-y-6">  
     <div 
-      class="grid grid-cols-2 lg:grid-cols-4 gap-4" 
+      class="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6" 
       :class="[ state === 'expanded' ? 'md:grid-cols-2' : 'md:grid-cols-4' ]"
     >
       <Card>
@@ -191,17 +191,18 @@ onMounted(async () => {
         </CardContent>
       </Card>
     </div>
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
       <Card class="flex flex-col">
         <CardContent>
           <PieChart :chartData="pieChartData" :isLoading="isLoading" />
         </CardContent>
       </Card>
-      <Card>
+      <Card class="pb-0">
         <CardHeader class="px-6">
           <CardTitle class="font-medium text-neutral-600">Unrealized Stocks</CardTitle>
         </CardHeader>
         <CardContent class="px-0 sm:px-6">
+          <!-- Desktop Table -->
           <div class="hidden w-full mx-auto sm:max-w-5xl sm:block">
             <Table class="table sm:max-w-4xl sm:mx-auto">
               <TableHeader>
@@ -209,12 +210,12 @@ onMounted(async () => {
                   <TableHead class="text-center text-neutral-500 font-light p-4 w-[120px] min-w-[120px]">Symbol</TableHead>
                   <TableHead class="text-right text-neutral-500 font-light w-[100px] min-w-[100px]">Profit</TableHead>
                   <TableHead class="text-right text-neutral-500 font-light">
-                    <div>Market Value</div>
+                    <div>Average Cost</div>
                   </TableHead>
                   <TableHead class="text-right text-neutral-500 font-light">
-                    <div>Total Cost</div>
+                    <div>Market Value</div>
                   </TableHead>
-                  <TableHead class="text-right text-neutral-500 font-light p-4 w-[80px]">Share</TableHead>
+                  <TableHead class="text-right text-neutral-500 font-light">Share</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -227,45 +228,47 @@ onMounted(async () => {
                 </template>
                 <template v-else>
                   <TableRow
-                    v-for="transaction in unrealizedStocks"
+                    v-for="(transaction, idx) in unrealizedStocks"
                     :key="transaction.id"
                     @click="handleClickSymbol(transaction.symbol)"
-                    class="cursor-pointer"
+                    class="cursor-pointe"
                   >
-                    <TableCell class="font-medium py-6">
+                    <TableCell :class="{ 'pt-4': idx === 0 }">
                       <div class="flex items-center gap-2 shrink-0">
                         <StockLogo :symbol="transaction.symbol" />
                         <Symbol :symbol="transaction.symbol" type="table" />
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell :class="{ 'pt-4': idx === 0 }">
                       <FormattedNumber
                         type="decimal"
+                        class="font-medium"
                         :value="transaction.profit"
                         :useColor="true"
                         :useSign="true"
                       />
                       <FormattedNumber
                         type="percentage"
+                        class="font-medium"
                         :value="transaction.profitPercentage"
                         :useColor="true"
                         :useSign="true"
                         :useParentheses="true"
                       />
                     </TableCell>
-                    <TableCell class="text-right">
+                    <TableCell :class="{ 'pt-4': idx === 0 }">
+                      <FormattedNumber
+                        type="decimal"
+                        :value="transaction.cost / transaction.remaingShare"
+                      />
+                    </TableCell>
+                    <TableCell :class="{ 'pt-4': idx === 0 }">
                       <FormattedNumber
                         type="decimal"
                         :value="currentPrices[transaction.symbol] * transaction.remaingShare"
                       />
                     </TableCell>
-                    <TableCell class="text-right">
-                      <FormattedNumber
-                        type="decimal"
-                        :value="transaction.cost"
-                      />
-                    </TableCell>
-                    <TableCell class="text-right p-4 w-[80px]">
+                    <TableCell :class="{ 'pt-4': idx === 0 }">
                       <FormattedNumber
                         type="decimal"
                         :value="transaction.remaingShare"
@@ -277,17 +280,18 @@ onMounted(async () => {
             </Table>
           </div>
 
-          <div class="block w-full space-y-4 mx-auto sm:hidden">
-            <Card 
+          <!-- Mobile Cards -->
+          <div class="block sm:hidden">
+            <div 
               v-for="transaction in unrealizedStocks"
               :key="transaction.id"
-              class="shadow-none border-none p-4"
+              class="border-b px-4 py-6 first:pt-0 last:border-b-0"
             >
-              <div class="space-y-3">
+              <div class="space-y-2.5">
                 <div class="flex justify-between items-end">
                   <div>
-                    <StockLogo :symbol="transaction.symbol" class="mb-0.5 ml-2"/>
-                    <Symbol :symbol="transaction.symbol" type="card" />
+                    <StockLogo :symbol="transaction.symbol" class="mb-0.5 ml-1"/>
+                    <Symbol :symbol="transaction.symbol" type="card" @click="handleClickSymbol(transaction.symbol)" class="underline underline-offset-4 ml-1"/>
                   </div>
                   <FormattedNumber
                     class="font-medium rounded-full px-2 py-0.5 mb-0.5"
@@ -303,7 +307,7 @@ onMounted(async () => {
                   />
                 </div>
                 
-                <div class="flex justify-between items-center border-t pt-3 px-2 text-sm">
+                <div class="flex justify-between items-center px-2 text-sm">
                   <div class="text-neutral-500">
                     Profit
                   </div>
@@ -318,8 +322,17 @@ onMounted(async () => {
                     :value="transaction.profit"
                     :useColor="true"
                   />
-                </div>  
-                <div class="flex justify-between items-center border-t pt-3 px-2 text-sm">
+                </div>
+
+                <div class="flex justify-between items-center px-2 text-sm">
+                  <div class="text-neutral-500">Average Cost</div>
+                  <FormattedNumber
+                    type="decimal"
+                    :value="transaction.cost / transaction.remaingShare"
+                  />
+                </div>
+
+                <div class="flex justify-between items-center px-2 text-sm">
                   <div class="text-neutral-500">Market Value</div>
                   <FormattedNumber
                     type="decimal"
@@ -327,15 +340,7 @@ onMounted(async () => {
                   />
                 </div>
 
-                <div class="flex justify-between items-center border-t pt-3 px-2 text-sm">
-                  <div class="text-neutral-500">Total Cost</div>
-                  <FormattedNumber
-                    type="decimal"
-                    :value="transaction.cost"
-                  />
-                </div>
-
-                <div class="flex justify-between items-center border-t pt-3 px-2 text-sm">
+                <div class="flex justify-between items-center px-2 text-sm">
                   <div class="text-neutral-500">Shares</div>
                   <FormattedNumber
                     type="decimal"
@@ -343,7 +348,7 @@ onMounted(async () => {
                   />
                 </div>
               </div>
-            </Card>
+            </div>
           </div>
         </CardContent>
       </Card>
