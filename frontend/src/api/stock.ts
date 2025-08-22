@@ -42,4 +42,29 @@ async function fetchClosingPrice({
   }>(`/api/historical?symbol=${symbol.toUpperCase()}&start=${timestamp}&end=${timestamp + 86400000}`);
 }
 
-export { fetchExchangeRate, fetchClosingPrice };
+async function fetchStockInfo(symbol: string) {
+  return fetcher.get<{
+    statusCode: number;
+    message: string;
+    data: {
+      0: string;
+      6: number; // current price
+      11: number;
+      21: number;
+      56: number; // current p/l percentage
+      200007: number; // timestamp
+      200009: string; // name
+      200010: string; // symbol
+      200013: number;
+      200025: number;
+      200061: string; // security type
+      200232: string;
+      800001: number;
+      800002: number;
+      800013: string;
+      800041: number;
+    }[]
+  }>(`https://ws.api.cnyes.com/ws/api/v1/quote/quotes/USS:${symbol}:STOCK?column=E`);
+}
+
+export { fetchExchangeRate, fetchClosingPrice, fetchStockInfo };

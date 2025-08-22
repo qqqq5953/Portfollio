@@ -21,50 +21,39 @@ Deno.serve(async (req) => {
   }
 
   const reqBody = await req.json();
-  console.log("reqBody", reqBody);
+  const { userId, symbol } = reqBody;
+  const { data, error } = await supabaseClient
+    .from('transactions')
+    .select('id, symbol, price, share, side, currency, exchange_rate, date, created_at')
+    .eq('user_id', userId)
+    .eq('symbol', symbol)
+    .order('date', { ascending: true })
 
-  const { userId, symbol, side } = reqBody;
-  
-  if (side === 'buy') {
-    const { data, error } = await supabaseClient
-      .from('transactions')
-      .select('id, symbol, price, share, side, currency, exchange_rate, date, created_at')
-      .eq('user_id', userId)
-      .eq('symbol', symbol)
-      .eq('side', side)
-      .order('date', { ascending: false })
-  
-    console.log("read result - data:", data);
-    console.log("read result - error:", error);
-    const res = await fetch(`https://ws.api.cnyes.com/ws/api/v1/quote/quotes/USS:${symbol}:STOCK?column=E`)
-    const result = await res.json()
-    console.log("result", result);
-  
-    return jsonResponse({ data: {
-      transactions: data,
-      info:{
-        currentPrice: result.data[0]['6'],
-        name: result.data[0]['200009'],
-        timestamp: result.data[0]['200007'],
-      }
-    }, error });
-  } else {
-    const { data, error } = await supabaseClient
-      .from('transactions')
-      .select('id, symbol, price, share, side, currency, exchange_rate, date, created_at')
-      .eq('user_id', reqBody.userId)
-      .eq('symbol', symbol)
-      .order('date', { ascending: true })
-    const enrichedSells = enrichSellTradesWithGainData(data);
-    console.log("enrichedSells", enrichedSells);
-
-    return jsonResponse({ data: {
-      transactions: enrichedSells,
-      info:{
-
-      }
-    }, error });
+  if (error) {
+    return jsonResponse({
+      data: null,
+      error,
+      status: 500,
+    })
   }
+
+  if (!data || data.length === 0) {
+    return jsonResponse({
+      data: {
+        transactions: [],
+      },
+      error: null
+    })
+  }
+
+  const enrichedSells = enrichSellTradesWithGainData(data);
+  console.log("enrichedSells", enrichedSells);
+
+  return jsonResponse({ 
+    data: {
+      transactions: enrichedSells,
+    }, error 
+  });
 });
 
 type InputTrade = {

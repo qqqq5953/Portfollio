@@ -17,7 +17,11 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button';
 import { Pencil, Trash, ChevronLeft, Loader2 } from 'lucide-vue-next';
+import FormattedNumber from '@/components/FormattedNumber.vue';
+import { fetchStockInfo } from '@/api/stock';
+import { useSidebar } from '@/components/ui/sidebar/utils';
 
+type Status = "realized" | "unrealized";
 type Side = "buy" | "sell";
 type Transaction = {
   id: string;
@@ -52,10 +56,12 @@ type SellTransaction = {
 };
 
 const route = useRoute();
-const symbol = ref('');
+const { state } = useSidebar();
+
+const symbol = ref<string>(route.params.symbol as string);
 const transactions = ref<Transaction[]>([]);
 const sellTransactions = ref<SellTransaction[]>([]);
-const selectedSide = ref<Side>("buy");
+const selectedStatus = ref<Status>("unrealized");
 const totalProfitPercentage = ref(0);
 const totalProfit = ref(0);
 const totalShares = ref(0);
@@ -63,7 +69,7 @@ const totalCost = ref(0);
 const info = ref({
   name: '',
   currentPrice: 0,
-  timestamp: 0,
+  timestamp: Date.now(),
 });
 const dateFormat = new Intl.DateTimeFormat('en-CA', {
   year: 'numeric',
@@ -72,35 +78,29 @@ const dateFormat = new Intl.DateTimeFormat('en-CA', {
 });
 const isBuyLoading = ref(false);
 const isSellLoading = ref(false);
+const isInfoLoading = ref(false);
 
-async function  handleDisplayTransactions (side: Side) { 
+async function handleDisplayTransactions (status: Status) { 
   const {
     data: { session },
   } = await supabase.auth.getSession();
 
-  if(side === 'buy') {
+  if(status === 'unrealized') {
     try {
       isBuyLoading.value = true;
   
       const res = await callEdgeFunction<{
         transactions: Transaction[];
-        info: {
-          currentPrice: number;
-          name: string;
-          timestamp: number;
-        };
       }>({
-        name: 'transaction-read-symbol',
+        name: 'unrealized-stock-read',
         body: {
           userId: session?.user?.id || "",
           symbol: symbol.value,
-          side,
         },
       });
       console.log("res", res);
 
       if(res.data) {
-        info.value = res.data.info
         transactions.value = res.data.transactions;
         const { _totalShares, _totalCost } = transactions.value.reduce((acc, item) => {
           acc._totalShares += item.share;
@@ -117,9 +117,7 @@ async function  handleDisplayTransactions (side: Side) {
     } finally {
       isBuyLoading.value = false;
     }
-  }
-
-  if(side === 'sell') {
+  } else {
     try {
       isSellLoading.value = true;
 
@@ -131,24 +129,24 @@ async function  handleDisplayTransactions (side: Side) {
           timestamp: number;
         };
       }>({
-        name: 'transaction-read-symbol',
+        name: 'realized-stock-read',
         body: {
           userId: session?.user?.id || "",
           symbol: symbol.value,
-          side,
         },
       });
       console.log("res", res);
 
       if(res.data) {
-        sellTransactions.value = res.data.transactions;
-        const { profit, totalCost } = sellTransactions.value.reduce((acc, item) => {
+        const hasData = res.data.transactions && res.data.transactions.length > 0;
+        sellTransactions.value = hasData ? res.data.transactions : [];
+        const { profit, totalCost } = hasData ? sellTransactions.value.reduce((acc, item) => {
           acc.profit += item.profit;
           acc.totalCost += item.costBasis;
           return acc;
-        }, { profit: 0, totalCost: 0 });
+        }, { profit: 0, totalCost: 0 }) : { profit: 0, totalCost: 0 };
         totalProfit.value = profit;
-        totalProfitPercentage.value = (profit / totalCost) * 100;
+        totalProfitPercentage.value = hasData ? (profit / totalCost) * 100 : 0;
       }
     } catch (error) {
       console.log("error", error);
@@ -156,29 +154,45 @@ async function  handleDisplayTransactions (side: Side) {
       isSellLoading.value = false;
     }
   }
-
 };
 
-watch(selectedSide, async (newSide: Side) => {
-  await handleDisplayTransactions(newSide);
+async function handleFetchInfo() {
+  try {
+    isInfoLoading.value = true;
+    const res = await fetchStockInfo(symbol.value);
+    console.log("fetchStockInfo", res);
+    if (res.statusCode === 200 && res.data && res.data.length > 0) {
+      info.value.currentPrice = res.data[0]['6'];
+      info.value.timestamp = res.data[0]['200007'];
+      info.value.name = res.data[0]['200009'];
+    }
+  } catch (error) {
+    console.log("handleFetchInfo error", error);
+  } finally {
+    isInfoLoading.value = false;
+  }
+}
+
+watch(selectedStatus, async (newStatus: Status) => {
+  await handleDisplayTransactions(newStatus);
 }, { immediate: true });
 
-onMounted(() => {
-  symbol.value = route.params.symbol as string;
+onMounted(async () => {
+  await handleFetchInfo();
 });
 </script>
 
 <template>
-  <div>
-    <header class="flex flex-col gap-4 mb-4">
+  <div class="lg:px-12">
+    <header class="flex flex-col gap-2 mb-4">
       <router-link to="/admin/overview" class="w-fit">
-        <Button variant="outline" size="sm" class="hidden sm:flex w-fit bg-transparent cursor-pointer">
+        <Button variant="ghost" size="sm" class="hidden sm:flex w-fit bg-transparent cursor-pointer">
           <ChevronLeft :size="24" />
           Back
         </Button>
       </router-link>
       <div class="flex items-end sm:items-center justify-between">
-        <div v-if="isBuyLoading">
+        <div v-if="isInfoLoading">
           <div class="flex flex-col gap-2 sm:flex-row-reverse sm:items-end">
             <Skeleton class="w-24 h-9" />
             <Skeleton class="w-48 h-9" />
@@ -190,7 +204,7 @@ onMounted(() => {
             <h2 class="text-3xl text-neutral-700 font-semibold">{{ info.name }}</h2>
           </div>
         </div>
-        <div v-if="isBuyLoading">
+        <div v-if="isInfoLoading">
           <Skeleton class="w-32 h-9" />
         </div>
         <div v-else>
@@ -202,155 +216,161 @@ onMounted(() => {
       </div>
     </header>
     
-    <div v-if="selectedSide === 'buy'" class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+    <div 
+      v-if="selectedStatus === 'unrealized'" 
+      class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6" 
+      :class="[ state === 'expanded' ? 'md:grid-cols-1' : 'md:grid-cols-2' ]"
+    >
       <div class="grid grid-cols-2 gap-4">
         <Card>
           <CardContent>
-            <div class="text-sm text-muted-foreground text-center">Profit %</div>
-            <div v-if="isBuyLoading" class="flex justify-center items-center pt-2">
+            <div class="text-sm text-muted-foreground text-center mb-1">Profit %</div>
+            <div v-if="isBuyLoading" class="flex justify-center items-center">
               <Loader2 class="animate-spin text-neutral-400" />
             </div>
-            <div 
+            <FormattedNumber
               v-else
-              class="text-xl font-medium text-center mt-1"
-              :class="{ 
-                'text-green-500': totalProfitPercentage > 0, 
-                'text-red-500': totalProfitPercentage < 0,
-                'text-neutral-600': totalProfitPercentage === 0
-              }"
-            >
-              <span class="mr-0.5">{{ totalProfitPercentage > 0 ? '+' :
-              totalProfitPercentage < 0 ? '-' : '' }}</span>
-              <span>{{ totalProfitPercentage.toFixed(2) }} %</span>
-            </div>
+              type="percentage"
+              align="center"
+              :value="totalProfitPercentage"
+              :useColor="true"
+              :useInCard="true"
+            />
           </CardContent>
         </Card>
         <Card>
           <CardContent>
-            <div class="text-sm text-muted-foreground text-center">Profit</div>
-            <div v-if="isBuyLoading" class="flex justify-center items-center pt-2">
+            <div class="text-sm text-muted-foreground text-center mb-1">Profit</div>
+            <div v-if="isBuyLoading" class="flex justify-center items-center">
               <Loader2 class="animate-spin text-neutral-400" />
             </div>
-            <div
+            <FormattedNumber
               v-else
-              class="text-xl font-medium text-center mt-1"
-              :class="{ 
-                'text-green-500': totalProfit > 0, 
-                'text-red-500': totalProfit < 0,
-                'text-neutral-600': totalProfit === 0
-              }"
-            >
-              <span class="mr-0.5">{{ totalProfit > 0 ? '+' :
-              totalProfit < 0 ? '-' : '' }}</span>
-              <span>{{ totalProfit.toFixed(2) }}</span>
-            </div>
+              type="decimal"
+              align="center"
+              :value="totalProfit"
+              :useColor="true"
+              :useInCard="true"
+            />
           </CardContent>
         </Card>
       </div>
       <div class="grid grid-cols-2 gap-4">
         <Card class="sm:hidden">
           <CardContent>
-            <div class="text-sm text-muted-foreground text-center">Closing Price</div>
-            <div v-if="isBuyLoading" class="flex justify-center items-center pt-2">
+            <div class="text-sm text-muted-foreground text-center mb-1">Closing Price</div>
+            <div v-if="isBuyLoading" class="flex justify-center items-center">
               <Loader2 class="animate-spin text-neutral-400" />
             </div>
-            <div v-else class="text-xl font-medium text-center mt-1">
-              <span>{{ info.currentPrice }}</span>
-            </div>
+            <FormattedNumber
+              v-else
+              type="decimal"
+              align="center"
+              :value="info.currentPrice"
+              :useInCard="true"
+            />
           </CardContent>
         </Card>
         <Card>
           <CardContent>
-            <div class="text-sm text-muted-foreground text-center">Average Cost</div>
-            <div v-if="isBuyLoading" class="flex justify-center items-center pt-2">
+            <div class="text-sm text-muted-foreground text-center mb-1">Average Cost</div>
+            <div v-if="isBuyLoading" class="flex justify-center items-center">
               <Loader2 class="animate-spin text-neutral-400" />
             </div>
-            <div v-else class="text-xl font-medium text-center mt-1">
-              <span>{{ (totalCost / totalShares).toFixed(2) }}</span>
-            </div>
+            <FormattedNumber
+              v-else
+              type="decimal"
+              align="center"
+              :value="totalCost / totalShares"
+              :useInCard="true"
+            />
           </CardContent>
         </Card>
         <Card class="hidden sm:flex">
           <CardContent>
-            <div class="text-sm text-muted-foreground text-center">Total Shares</div>
-            <div v-if="isBuyLoading" class="flex justify-center items-center pt-2">
+            <div class="text-sm text-muted-foreground text-center mb-1">Total Shares</div>
+            <div v-if="isBuyLoading" class="flex justify-center items-center">
               <Loader2 class="animate-spin text-neutral-400" />
             </div>
-            <div v-else class="text-xl font-medium text-center mt-1">
-              <span>{{ totalShares }}</span>
-            </div>
+            <FormattedNumber
+              v-else
+              type="decimal"
+              align="center"
+              :value="totalShares"
+              :useInCard="true"
+            />
           </CardContent>
         </Card>
       </div>
       <Card class="sm:hidden">
         <CardContent>
-          <div class="text-sm text-muted-foreground text-center">Total Shares</div>
-          <div v-if="isBuyLoading" class="flex justify-center items-center pt-2">
+          <div class="text-sm text-muted-foreground text-center mb-1">Total Shares</div>
+          <div v-if="isBuyLoading" class="flex justify-center items-center">
             <Loader2 class="animate-spin text-neutral-400" />
           </div>
-          <div v-else class="text-xl font-medium text-center mt-1">
-            <span>{{ totalShares }}</span>
-          </div>
+          <FormattedNumber
+            v-else
+            type="decimal"
+            align="center"
+            :value="totalShares"
+            :useInCard="true"
+          />
         </CardContent>
       </Card>
     </div>
+
     <div v-else class="grid grid-cols-2 gap-4 mb-6">
       <Card>
         <CardContent>
-          <div class="text-sm text-muted-foreground text-center">Profit %</div>
-          <div v-if="isSellLoading" class="flex justify-center items-center pt-2">
+          <div class="text-sm text-muted-foreground text-center mb-1">Profit %</div>
+          <div v-if="isSellLoading" class="flex justify-center items-center">
             <Loader2 class="animate-spin text-neutral-400" />
           </div>
-          <div 
+          <FormattedNumber
             v-else
-            class="text-xl font-medium text-center mt-1"
-            :class="{ 
-              'text-green-500': totalProfitPercentage > 0, 
-              'text-red-500': totalProfitPercentage < 0,
-              'text-neutral-600': totalProfitPercentage === 0
-            }"
-          >
-            <span class="mr-0.5">{{ totalProfitPercentage > 0 ? '+' :
-            totalProfitPercentage < 0 ? '-' : '' }}</span>
-            <span>{{ totalProfitPercentage.toFixed(2) }} %</span>
-          </div>
+            type="percentage"
+            align="center"
+            :value="totalProfitPercentage"
+            :useColor="true"
+            :useInCard="true"
+          />
         </CardContent>
       </Card>
       <Card>
         <CardContent>
-          <div class="text-sm text-muted-foreground text-center">Profit</div>
-          <div v-if="isSellLoading" class="flex justify-center items-center pt-2">
+          <div class="flex justify-center items-center gap-1 text-sm text-muted-foreground mb-1">
+            <span>Profit</span>
+            <span class="text-xs">(USD)</span>
+          </div>
+          <div v-if="isSellLoading" class="flex justify-center items-center">
             <Loader2 class="animate-spin text-neutral-400" />
           </div>
-          <div
+          <FormattedNumber
             v-else
-            class="text-xl font-medium text-center mt-1"
-            :class="{ 
-              'text-green-500': totalProfit > 0, 
-              'text-red-500': totalProfit < 0,
-              'text-neutral-600': totalProfit === 0
-            }"
-          >
-            <span class="mr-0.5">{{ totalProfit > 0 ? '+' :
-            totalProfit < 0 ? '-' : '' }}</span>
-            <span>{{ totalProfit.toFixed(2) }}</span>
-          </div>
+            type="decimal"
+            align="center"
+            :value="totalProfit"
+            :useColor="true"
+            :useInCard="true"
+          />
         </CardContent>
       </Card>
     </div>
 
     <Card>
       <CardContent>
-        <Tabs v-model="selectedSide">
+        <Tabs v-model="selectedStatus">
           <TabsList class="w-full rounded-none bg-transparent">
-            <TabsTrigger value="buy" class="text-base py-6 rounded-none border-0 w-1/2 data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:text-indigo-600 data-[state=active]:border-b-[1.5px] data-[state=active]:border-indigo-500 data-[state=inactive]:border-b-[1.5px] data-[state=inactive]:border-neutral-300 data-[state=inactive]:text-neutral-500 font-medium">
-              Buy
+            <TabsTrigger value="unrealized" class="cursor-pointer py-6 rounded-none border-0 w-1/2 data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:text-indigo-600 data-[state=active]:border-b-[1.5px] data-[state=active]:border-indigo-500 data-[state=inactive]:border-b-[1.5px] data-[state=inactive]:border-neutral-300 data-[state=inactive]:text-neutral-500 font-medium">
+              <div class="text-base sm:hidden">Unrealized</div>
+              <div class="text-wrap hidden sm:text-base sm:block">Unrealized Transactions</div>
             </TabsTrigger>
-            <TabsTrigger value="sell" class="text-base py-6 rounded-none border-0 w-1/2 data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:text-indigo-500 data-[state=active]:border-b-[1.5px] data-[state=active]:border-indigo-500 data-[state=inactive]:border-b-[1.5px] data-[state=inactive]:border-neutral-300 data-[state=inactive]:text-neutral-500">
-              Sell
+            <TabsTrigger value="realized" class="cursor-pointer py-6 rounded-none border-0 w-1/2 data-[state=active]:shadow-none data-[state=active]:bg-transparent data-[state=active]:text-indigo-500 data-[state=active]:border-b-[1.5px] data-[state=active]:border-indigo-500 data-[state=inactive]:border-b-[1.5px] data-[state=inactive]:border-neutral-300 data-[state=inactive]:text-neutral-500">
+              <div class="text-base sm:hidden">Realized</div>
+              <div class="text-wrap hidden sm:text-base sm:block">Realized Transactions</div>
             </TabsTrigger>
           </TabsList>
-          <TabsContent value="buy" class="flex flex-col gap-4 mt-4">
+          <TabsContent value="unrealized" class="flex flex-col gap-4 mt-4">
             <div v-if="isBuyLoading" class="space-y-8">
               <div class="space-y-4 mt-4">
                 <div class="h-10 w-full bg-neutral-200 mx-auto animate-pulse rounded-xl" v-for="_i in 5" />
@@ -432,13 +452,13 @@ onMounted(() => {
               </div>
             </div>
           </TabsContent>
-          <TabsContent value="sell" class="flex flex-col gap-4 mt-4">
+          <TabsContent value="realized" class="flex flex-col gap-4 mt-4">
             <div v-if="isSellLoading" class="space-y-8">
               <div class="space-y-4 mt-4">
                 <div class="h-10 w-full bg-neutral-200 mx-auto animate-pulse rounded-xl" v-for="_i in 5" />
               </div>
             </div>
-            <div v-else class="flex flex-col gap-4">
+            <div v-else-if="sellTransactions.length > 0" class="flex flex-col gap-4">
               <!-- Desktop Table -->
                 <div class="hidden w-full sm:block sm:mx-auto">
                   <Table>
@@ -537,6 +557,11 @@ onMounted(() => {
                     </div>
                   </div>
                 </Card>
+              </div>
+            </div>
+            <div v-else>
+              <div class="flex flex-col items-center justify-center h-full">
+                <p class="text-sm text-neutral-400">No realized transactions</p>
               </div>
             </div>
           </TabsContent>

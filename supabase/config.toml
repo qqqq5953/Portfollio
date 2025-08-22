@@ -376,13 +376,24 @@ entrypoint = "./functions/unrealized-stocks-read/index.ts"
 # For example, if you want to serve static HTML pages in your function:
 # static_files = [ "./functions/unrealized-stocks-read/*.html" ]
 
-[functions.transaction-read-symbol]
+[functions.realized-stock-read]
 enabled = true
 verify_jwt = true
-import_map = "./functions/transaction-read-symbol/deno.json"
+import_map = "./functions/realized-stock-read/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
-entrypoint = "./functions/transaction-read-symbol/index.ts"
+entrypoint = "./functions/realized-stock-read/index.ts"
 # Specifies static files to be bundled with the function. Supports glob patterns.
 # For example, if you want to serve static HTML pages in your function:
-# static_files = [ "./functions/transaction-read-symbol/*.html" ]
+# static_files = [ "./functions/realized-stock-read/*.html" ]
+
+[functions.unrealized-stock-read]
+enabled = true
+verify_jwt = true
+import_map = "./functions/unrealized-stock-read/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/unrealized-stock-read/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/unrealized-stock-read/*.html" ]

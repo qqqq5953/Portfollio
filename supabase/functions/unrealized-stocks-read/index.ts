@@ -38,6 +38,7 @@ Deno.serve(async (req) => {
   const uniqueSymbols = [...new Set(symbols)];
   // console.log("uniqueSymbols", uniqueSymbols);
 
+  // fetch current price from cnyes
   const res = await Promise.allSettled([
     ...uniqueSymbols.map(symbol => fetch(`https://ws.api.cnyes.com/ws/api/v1/quote/quotes/USS:${symbol}:STOCK?column=E`))
   ])
@@ -96,18 +97,17 @@ type RemainingHolding = {
 
 function getUnrealizedHoldings(trades: Trade[], currentPrices: Record<string, number>): RemainingHolding[] {
   const buyQueues: Record<string, Trade[]> = {};
-  const results: Record<string, { cost: number; marketValue: number; remaingShare: number; exchange_rate: number; currency: string; remainingBuys: Trade[] }> = {};
-
+  
   for (const trade of trades) {
     const { symbol } = trade;
-
+    
     if (!buyQueues[symbol]) buyQueues[symbol] = [];
-
+    
     if (trade.side === 'buy') {
       buyQueues[symbol].push({ ...trade });
     } else if (trade.side === 'sell') {
       let qtyToSell = trade.share;
-
+      
       while (qtyToSell > 0 && buyQueues[symbol]?.length > 0) {
         const buy = buyQueues[symbol][0];
         const qtyUsed = Math.min(buy.share, qtyToSell);
@@ -119,8 +119,10 @@ function getUnrealizedHoldings(trades: Trade[], currentPrices: Record<string, nu
       }
     }
   }
-
+  
   console.log("buyQueues", buyQueues);
+  
+  const results: Record<string, { cost: number; marketValue: number; remaingShare: number; exchange_rate: number; currency: string; remainingBuys: Trade[] }> = {};
 
   for (const symbol in buyQueues) {
     const buys = buyQueues[symbol];
