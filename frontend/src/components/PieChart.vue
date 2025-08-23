@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { formatNumberWithCommasAndDecimals } from "@/lib/helper";
 import { PieChart } from "echarts/charts";
 import {
   LegendComponent,
@@ -7,7 +8,7 @@ import {
 } from "echarts/components";
 import { use } from "echarts/core";
 import { CanvasRenderer } from "echarts/renderers";
-import { computed, provide } from "vue";
+import { computed, provide, ref, onMounted, onUnmounted } from "vue";
 import VChart, { THEME_KEY } from "vue-echarts";
 
 type ChartDataItem = {
@@ -36,51 +37,52 @@ use([
 
 provide(THEME_KEY, "light");
 
+// Media query detection
+const isLargeScreen = ref(false);
+
+onMounted(() => {
+  const mediaQuery = window.matchMedia('(min-width: 768px)');
+  isLargeScreen.value = mediaQuery.matches;
+  
+  const handleMediaChange = (e: MediaQueryListEvent) => {
+    isLargeScreen.value = e.matches;
+  };
+  
+  mediaQuery.addEventListener('change', handleMediaChange);
+  
+  onUnmounted(() => {
+    mediaQuery.removeEventListener('change', handleMediaChange);
+  });
+});
+
 const option = computed(() => ({
-  title: {
-    text: "Portfolio Composition",
-    left: "left",
-    textStyle: {
-      fontSize: 16,
-      color: "#525252",
-    },
-  },
-  tooltip: {
-    trigger: "item",
-    formatter: (params: any) => {
-      const data = params.data;
-      return `
-        <div class="flex flex-col gap-1">
-          <div class="flex items-center gap-8">
-            <span class="font-bold text-neutral-800">${data.symbol}</span>
-            <div class="flex items-center font-medium ${data.profit >= 0 ? 'text-green-500' : 'text-red-500'}">
-              <span>${data.profit >= 0 ? '+' : ''}</span>
-              <span class="ml-0.5 mr-1">${data.profit.toFixed(2)}</span>
-              <span>(${data.profitPercentage.toFixed(2)}%)</span>
-            </div>
-          </div>
-          <div class="flex items-center justify-between">
-            <span class="text-neutral-500 mr-1">Market Value:</span>
-            <span>${data.value}</span>
-          </div>
-          <div class="flex items-center justify-between">
-            <span class="text-neutral-500 mr-1">Shares:</span><span class="text-neutral-500">${data.shares}</span>
-          </div>
-        </div>
-      `;
-    },
-  },
   legend: {
-    orient: "horizontal",
-    bottom: "bottom",
+    orient: isLargeScreen.value?'horizontal':'vertical',
+    top: isLargeScreen.value ? '5%' : 'middle',
+    left: isLargeScreen.value ? 'center' : '5%',
+    icon: 'circle',
     data: props.chartData.map(item => item.symbol),
+    formatter: (name: string) => {
+      const item = props.chartData.find(data => data.symbol === name);
+      if (item) {
+        const totalValue = props.chartData.reduce((sum, data) => sum + data.value, 0);
+        const percentage = ((item.value / totalValue) * 100).toFixed(1);
+        return `${name} - ${percentage}%`;
+      }
+      return name;
+    }
   },
   series: [
     {
       name: "Portfolio",
       type: "pie",
-      radius: "55%",
-      center: ["50%", "60%"],
+      radius: isLargeScreen.value ? ['40%', '60%'] : ['50%', '33%'], // 粗細, 
+      center: isLargeScreen.value ? ["50%", "65%"] : ["75%", "43%"],
+      itemStyle: {
+        borderRadius: 5,
+        borderColor: '#fff',
+        borderWidth: 1
+      },
       data: props.chartData.map(item => ({
         value: item.value,
         name: item.symbol,
@@ -91,20 +93,73 @@ const option = computed(() => ({
         profitPercentage: item.profitPercentage,
         currentPrice: item.currentPrice,
       })),
-      emphasis: {
-        itemStyle: {
-          shadowBlur: 10,
-          shadowOffsetX: 0,
-          shadowColor: "rgba(0, 0, 0, 0.5)",
-        },
-      },
       label: {
-        show: true,
-        formatter: '{b}: {d}%',
-        fontSize: 12,
+        show: false,
+        position: 'center',
+        formatter: (params: any) => {
+          const data = params.data;
+          const profitStyle = data.profit >= 0 ? 'profitPositive' : 'profitNegative';
+          
+          function formatValue(value: number) {
+            if (value >= 1000000) {
+              return `$${formatNumberWithCommasAndDecimals(value / 1000000)}M`;
+            } else if (value >= 1000) {
+              return `$${formatNumberWithCommasAndDecimals(value / 1000)}K`;
+            } else {
+              return `$${formatNumberWithCommasAndDecimals(value)}`;
+            }
+          };
+          
+          function formatProfit(profit: number) {
+            if (Math.abs(profit) >= 1000000) {
+              return `${formatNumberWithCommasAndDecimals(profit / 1000000)}M`;
+            } else if (Math.abs(profit) >= 1000) {
+              return `${formatNumberWithCommasAndDecimals(profit / 1000)}K`;
+            } else {
+              return `${formatNumberWithCommasAndDecimals(profit)}`;
+            }
+          };
+          
+          const valueStr = formatValue(data.value);
+          const profitStr = `${formatProfit(data.profit)}\n(${data.profitPercentage.toFixed(1)}%)`;
+
+          return `{symbol|${data.symbol}}\n` +
+                `{value|${valueStr}}\n` +
+                `{${profitStyle}|${profitStr}}`
+        },
+        rich: {
+          symbol: {
+            fontSize: isLargeScreen.value ? 16 : 14,
+            fontWeight: 'bold',
+            color: '#374151',
+            lineHeight: 18,
+          },
+          value: {
+            fontSize: isLargeScreen.value ? 14 : 12,
+            color: '#6b7280',
+            lineHeight: 18,
+          },
+          profitPositive: {
+            fontSize: isLargeScreen.value ? 14 : 12,
+            fontWeight: 'bold',
+            color: '#22c55e',
+            lineHeight: 18,
+          },
+          profitNegative: {
+            fontSize: isLargeScreen.value ? 14 : 12,
+            fontWeight: 'bold',
+            color: '#ef4444',
+            lineHeight: 18,
+          }
+        }
       },
-    },
-  ],
+      emphasis: {
+        label: {
+          show: true, // show when hovered
+        }
+      }
+    }
+  ]
 }));
 </script>
 

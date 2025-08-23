@@ -199,8 +199,8 @@ onMounted(async () => {
           </div>
         </div>
         <div v-else class="grow pr-4 max-w-60 sm:max-w-2/3">
-          <h1 class="text-2xl text-neutral-400">{{ symbol }}</h1>
-          <h2 class="text-3xl text-neutral-700 font-semibold truncate md:whitespace-normal md:overflow-visible md:break-all">{{ info.name }}</h2>
+          <h1 class="text-2xl text-neutral-500 leading-6">{{ symbol }}</h1>
+          <h2 class="text-[28px] text-neutral-700 font-medium truncate md:whitespace-normal md:overflow-visible md:break-all">{{ info.name }}</h2>
         </div>
         <div v-if="isInfoLoading">
           <Skeleton class="w-32 h-9" />

@@ -57,3 +57,10 @@ export function debounce<T extends (...args: any[]) => void>(fn: T, delay = 500)
     }, delay);
   };
 }
+
+export function formatNumberWithCommasAndDecimals(num: number): string {
+  return new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(num)
+}

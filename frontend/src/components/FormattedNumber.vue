@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { ArrowUp, ArrowDown } from 'lucide-vue-next';
+import { formatNumberWithCommasAndDecimals } from '@/lib/helper';
 
 const props = withDefaults(defineProps<{
   value: number;
@@ -42,14 +43,14 @@ const alignClass = computed(() => {
 });
 
 const number = computed(() => {
-  return props.useSign ? formatNumber(Math.abs(props.value)) : formatNumber(props.value);
+  return props.useSign ? formatNumberWithDecimals(Math.abs(props.value)) : formatNumberWithDecimals(props.value);
 });
 
 const formattedNumber = computed(() => {
-  return new Intl.NumberFormat("en-US").format(number.value);
+  return formatNumberWithCommasAndDecimals(number.value);
 });
 
-function formatNumber(num: number): number {
+function formatNumberWithDecimals(num: number): number {
   return Number.isInteger(num) || num.toString().split(".")[1]?.length <= 2
       ? num
       : Number(num.toFixed(2));

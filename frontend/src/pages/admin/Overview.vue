@@ -8,6 +8,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectLabel,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Loader2 } from "lucide-vue-next";
 import PieChart from "@/components/PieChart.vue";
 import { onMounted, ref, computed } from "vue";
@@ -41,9 +50,22 @@ const totalProfit = ref(0);
 const totalValue = ref(0);
 const totalCost = ref(0);
 const isLoading = ref(false);
+const sortBy = ref("profit");
 
 const { state } = useSidebar();
 const router = useRouter();
+
+const sortedUnrealizedStocks = computed(() => {
+  return unrealizedStocks.value.sort((a, b) => {
+    if (sortBy.value === "profitPercentage") {
+      return b.profitPercentage - a.profitPercentage;
+    } else if (sortBy.value === "profit") {
+      return b.profit - a.profit;
+    } else {
+      return a.symbol.localeCompare(b.symbol);
+    }
+  }).slice(0, 5);
+});
 
 const pieChartData = computed(() => {
   if (unrealizedStocks.value.length === 0) return [];
@@ -59,8 +81,14 @@ const pieChartData = computed(() => {
       profitPercentage: stock.profitPercentage,
       currentPrice: currentPrices.value[stock.symbol]
     };
-  });
+  }).sort((a, b) => {
+    const marketValueA = currentPrices.value[a.symbol] * a.shares;
+    const marketValueB = currentPrices.value[b.symbol] * b.shares;
+    return marketValueB - marketValueA;
+  })
 });
+
+
 
 function handleClickSymbol(symbol: string) {
   router.push({
@@ -113,7 +141,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="space-y-4 sm:space-y-6">  
+  <div class="flex flex-col gap-4 sm:gap-6 h-full">  
     <div 
       class="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6" 
       :class="[ state === 'expanded' ? 'md:grid-cols-2' : 'md:grid-cols-4' ]"
@@ -191,19 +219,44 @@ onMounted(async () => {
         </CardContent>
       </Card>
     </div>
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-      <Card class="flex flex-col">
-        <CardContent>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 sm:gap-6 -mx-4 sm:mx-0 grow">
+      <Card class="flex flex-col rounded-none sm:rounded-xl">
+        <CardContent class="h-full">
+          <CardTitle class="font-semibold text-neutral-600">Portfolio Composition</CardTitle>
           <PieChart :chartData="pieChartData" :isLoading="isLoading" />
         </CardContent>
       </Card>
-      <Card class="pb-0">
+      <Card class="pb-0 rounded-none sm:rounded-xl">
         <CardHeader class="px-6">
-          <CardTitle class="font-medium text-neutral-600">Unrealized Stocks</CardTitle>
+          <div class="flex justify-between items-center">
+            <CardTitle class="font-semibold text-neutral-600">Top 5 Holdings</CardTitle>
+            <div class="flex items-center gap-2">
+              <Select v-model="sortBy">
+                <SelectTrigger size="sm">
+                  <SelectValue placeholder="Sort by"/>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectLabel>Sort By:</SelectLabel>
+                    <SelectItem value="profitPercentage">
+                      Profit %
+                    </SelectItem>
+                    <SelectItem value="profit">
+                      Profit (USD)
+                    </SelectItem>
+                    <SelectItem value="symbol">
+                      Symbol (A-Z)
+                    </SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardHeader>
         <CardContent class="px-0 sm:px-6">
           <!-- Desktop Table -->
-          <div class="hidden w-full mx-auto sm:max-w-5xl sm:block">
+          <div class="hidden w-full mx-auto sm:max-w-5xl sm:block overflow-y-auto">
             <Table class="table sm:max-w-4xl sm:mx-auto">
               <TableHeader>
                 <TableRow>
@@ -228,7 +281,7 @@ onMounted(async () => {
                 </template>
                 <template v-else>
                   <TableRow
-                    v-for="(transaction, idx) in unrealizedStocks"
+                    v-for="(transaction, idx) in sortedUnrealizedStocks"
                     :key="transaction.id"
                     @click="handleClickSymbol(transaction.symbol)"
                     class="cursor-pointe"
@@ -240,21 +293,21 @@ onMounted(async () => {
                       </div>
                     </TableCell>
                     <TableCell :class="{ 'pt-4': idx === 0 }">
-                      <FormattedNumber
-                        type="decimal"
-                        class="font-medium"
-                        :value="transaction.profit"
-                        :useColor="true"
-                        :useSign="true"
-                      />
-                      <FormattedNumber
-                        type="percentage"
-                        class="font-medium"
-                        :value="transaction.profitPercentage"
-                        :useColor="true"
-                        :useSign="true"
-                        :useParentheses="true"
-                      />
+                      <div class="flex flex-col items-end" :class="{ 'flex-col-reverse': sortBy === 'profitPercentage' }">
+                        <FormattedNumber
+                          type="decimal"
+                          class="font-medium"
+                          :value="transaction.profit"
+                          :useColor="true"
+                        />
+                        <FormattedNumber
+                          type="percentage"
+                          class="font-medium"
+                          :value="transaction.profitPercentage"
+                          :useColor="true"
+                          :useParentheses="true"
+                        />
+                      </div>
                     </TableCell>
                     <TableCell :class="{ 'pt-4': idx === 0 }">
                       <FormattedNumber
@@ -283,7 +336,7 @@ onMounted(async () => {
           <!-- Mobile Cards -->
           <div class="block sm:hidden">
             <div 
-              v-for="transaction in unrealizedStocks"
+              v-for="transaction in sortedUnrealizedStocks"
               :key="transaction.id"
               class="border-b px-4 py-6 first:pt-0 last:border-b-0"
             >
@@ -353,7 +406,8 @@ onMounted(async () => {
         </CardContent>
       </Card>
     </div>
-    <footer class="flex justify-center items-center text-sm text-neutral-500">
+
+    <footer class="flex justify-center items-center text-sm text-neutral-500 mt-auto">
       <a href="https://elbstream.com" target="_blank" class="hover:underline">Logos provided by Elbstream</a>
     </footer>
   </div>
