@@ -59,7 +59,7 @@ const option = computed(() => ({
   legend: {
     orient: isLargeScreen.value?'horizontal':'vertical',
     top: isLargeScreen.value ? '5%' : 'middle',
-    left: isLargeScreen.value ? 'center' : '5%',
+    left: isLargeScreen.value ? 'center' : '0%',
     icon: 'circle',
     data: props.chartData.map(item => item.symbol),
     formatter: (name: string) => {
@@ -77,7 +77,7 @@ const option = computed(() => ({
       name: "Portfolio",
       type: "pie",
       radius: isLargeScreen.value ? ['40%', '60%'] : ['50%', '33%'], // 粗細, 
-      center: isLargeScreen.value ? ["50%", "65%"] : ["75%", "43%"],
+      center: isLargeScreen.value ? ["50%", "60%"] : ["75%", "43%"],
       itemStyle: {
         borderRadius: 5,
         borderColor: '#fff',
@@ -129,27 +129,27 @@ const option = computed(() => ({
         },
         rich: {
           symbol: {
-            fontSize: isLargeScreen.value ? 16 : 14,
+            fontSize: isLargeScreen.value ? 18 : 14,
             fontWeight: 'bold',
             color: '#374151',
-            lineHeight: 18,
+            lineHeight: isLargeScreen.value ? 24 : 18,
           },
           value: {
-            fontSize: isLargeScreen.value ? 14 : 12,
+            fontSize: isLargeScreen.value ? 16 : 12,
             color: '#6b7280',
-            lineHeight: 18,
+            lineHeight: isLargeScreen.value ? 24 : 18,
           },
           profitPositive: {
-            fontSize: isLargeScreen.value ? 14 : 12,
+            fontSize: isLargeScreen.value ? 16 : 12,
             fontWeight: 'bold',
             color: '#22c55e',
-            lineHeight: 18,
+            lineHeight: isLargeScreen.value ? 24 : 18,
           },
           profitNegative: {
-            fontSize: isLargeScreen.value ? 14 : 12,
+            fontSize: isLargeScreen.value ? 16 : 12,
             fontWeight: 'bold',
             color: '#ef4444',
-            lineHeight: 18,
+            lineHeight: isLargeScreen.value ? 24 : 18,
           }
         }
       },

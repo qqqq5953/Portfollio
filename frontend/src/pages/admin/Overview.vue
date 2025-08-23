@@ -221,7 +221,7 @@ onMounted(async () => {
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 sm:gap-6 -mx-4 sm:mx-0 grow">
-      <Card class="flex flex-col rounded-none sm:rounded-xl">
+      <Card class="pb-0 rounded-none sm:rounded-xl">
         <CardContent class="h-full">
           <CardTitle class="font-semibold text-neutral-600">Portfolio Composition</CardTitle>
           <PieChart :chartData="pieChartData" :isLoading="isLoading" />
